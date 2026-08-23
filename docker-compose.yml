@@ -1,0 +1,28 @@
+services:
+  orca:
+    build:
+      context: .
+      args:
+        ORCA_VERSION: ${ORCA_VERSION:-v1.4.188}
+    image: orca-server:${ORCA_VERSION:-v1.4.188}
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      ORCA_PORT: ${ORCA_PORT:-6768}
+      ORCA_PAIRING_ADDRESS: ${ORCA_PAIRING_ADDRESS:?Set ORCA_PAIRING_ADDRESS in .env}
+    ports:
+      - "${ORCA_BIND_ADDRESS:-127.0.0.1}:${ORCA_PORT:-6768}:${ORCA_PORT:-6768}"
+    volumes:
+      - orca-home:/home/orca
+      - orca-workspace:/workspace
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/$${ORCA_PORT:-6768}'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  orca-home:
+  orca-workspace:
