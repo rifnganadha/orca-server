@@ -22,21 +22,22 @@ RUN case "${TARGETARCH}" in \
     && echo "${file_info}" | grep -q 'ELF .* executable' \
     && echo "${file_info}" | grep -Fq "${machine}" \
     && ./orca-linux.AppImage --appimage-extract \
-    && rm orca-linux.AppImage
+    && rm orca-linux.AppImage \
+    && chmod -R a+rX squashfs-root
 
 FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LIBGL_ALWAYS_SOFTWARE=1 \
-    ORCA_PORT=6768
+    ORCA_PORT=6770
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        apache2-utils \
         bash \
-        build-essential \
         ca-certificates \
         curl \
-        file \
+        gh \
         git \
         jq \
         libasound2 \
@@ -54,24 +55,23 @@ RUN apt-get update \
         libxcomposite1 \
         libxdamage1 \
         libxkbcommon0 \
+        nginx-light \
         openssh-client \
-        python3 \
+        openssl \
+        qrencode \
+        ripgrep \
         xvfb \
-        zlib1g-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --create-home --shell /bin/bash orca \
-    && install -d -o orca -g orca /workspace
+    && useradd --create-home --shell /bin/bash orca
 
 COPY --from=extractor /opt/orca/squashfs-root /opt/orca/squashfs-root
-COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-
-RUN chown -R root:root /opt/orca \
-    && chmod -R a+rX /opt/orca
+COPY docker/nginx /usr/local/share/orca-server/nginx
+COPY docker/web /usr/local/share/orca-server/web
+COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 USER orca
 WORKDIR /home/orca
 
 EXPOSE 6768
-VOLUME ["/home/orca", "/workspace"]
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

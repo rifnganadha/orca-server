@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Sign in to Orca</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: sans-serif;
+        }
+
+        body {
+            display: grid;
+            min-height: 100vh;
+            margin: 0;
+            place-items: center;
+            background: Canvas;
+            color: CanvasText;
+        }
+
+        main {
+            width: min(24rem, calc(100% - 2rem));
+        }
+
+        form,
+        label {
+            display: grid;
+        }
+
+        form {
+            gap: 1rem;
+        }
+
+        label {
+            gap: 0.35rem;
+        }
+
+        input,
+        button {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 0.7rem;
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        #error {
+            min-height: 1.25rem;
+            color: #c33;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Sign in to Orca</h1>
+        <form id="login-form">
+            <label>
+                Username
+                <input name="username" autocomplete="username" required>
+            </label>
+            <label>
+                Password
+                <input
+                    name="password"
+                    type="password"
+                    autocomplete="current-password"
+                    required
+                >
+            </label>
+            <button type="submit">Sign in</button>
+            <p id="error" role="alert"></p>
+        </form>
+    </main>
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const form = new FormData(event.currentTarget);
+            const credentials = `${form.get('username')}:${form.get('password')}`;
+            const response = await fetch('/auth-check', {
+                headers: { Authorization: `Basic ${btoa(credentials)}` },
+                cache: 'no-store'
+            });
+            if (response.ok) {
+                location.href = '/';
+            } else {
+                document.getElementById('error').textContent =
+                    'Invalid username or password.';
+            }
+        });
+    </script>
+</body>
+</html>

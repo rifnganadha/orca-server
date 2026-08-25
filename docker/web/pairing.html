@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Pair Orca @@TITLE@@</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: sans-serif;
+        }
+
+        body {
+            display: grid;
+            min-height: 100vh;
+            margin: 0;
+            place-items: center;
+            background: Canvas;
+            color: CanvasText;
+        }
+
+        main {
+            width: min(28rem, calc(100% - 2rem));
+            text-align: center;
+        }
+
+        img {
+            width: min(22rem, 100%);
+            background: white;
+        }
+
+        code {
+            overflow-wrap: anywhere;
+            user-select: all;
+        }
+
+        .pairing-code {
+            display: block;
+            max-height: 8rem;
+            overflow: auto;
+            padding: 0.75rem;
+            border: 1px solid GrayText;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Pair Orca @@TITLE@@</h1>
+        <p>@@INSTRUCTIONS@@</p>
+        <img src="/@@QR_PATH@@" alt="Orca @@TITLE@@ pairing QR code">
+        <p><strong>Pairing code</strong></p>
+        <code class="pairing-code">@@PAIRING_URL@@</code>
+        <p>Endpoint: <code>@@PAIRING_ENDPOINT@@</code></p>
+    </main>
+</body>
+</html>

@@ -1,4 +1,5 @@
 .env
 .git
 .gitignore
+.vscode
 README.md
