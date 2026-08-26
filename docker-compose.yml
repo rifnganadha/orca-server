@@ -18,6 +18,7 @@ services:
       GIT_USER_NAME: ${GIT_USER_NAME:?Set GIT_USER_NAME in .env}
       GIT_USER_EMAIL: ${GIT_USER_EMAIL:?Set GIT_USER_EMAIL in .env}
       GH_TOKEN: ${GH_TOKEN:-}
+      KILO_API_KEY: ${KILO_API_KEY:-}
     ports:
       - "${ORCA_PORT:-6770}:6768"
     volumes:

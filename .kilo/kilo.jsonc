@@ -1,0 +1,19 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "model": "9router/gpt-5.6-sol",
+  "provider": {
+    "9router": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "9Router",
+      "options": {
+        "baseURL": "https://9router.akasia.dev/v1",
+        "apiKey": "{env:KILO_API_KEY}"
+      },
+      "models": {
+        "gpt-5.6-sol": {
+          "name": "GPT-5.6 SOL"
+        }
+      }
+    },
+  }
+}

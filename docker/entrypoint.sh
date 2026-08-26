@@ -40,6 +40,8 @@ esac
 runtime_dir="$(mktemp -d)"
 mobile_ready_log="${runtime_dir}/mobile.log"
 web_ready_log="${runtime_dir}/web.log"
+: >"${mobile_ready_log}"
+: >"${web_ready_log}"
 nginx_config="${runtime_dir}/nginx.conf"
 web_auth_file="${runtime_dir}/htpasswd"
 web_session_token="$(openssl rand -hex 32)"
@@ -64,17 +66,34 @@ wait_for_pairing() {
     local scope="$1"
     local log="$2"
     local label="$3"
-    local result
+    local line parsed result
+    local fragment=""
+    local log_fd
+
+    exec {log_fd}<"${log}"
 
     for _ in $(seq 1 120); do
-        result="$(jq -Rr --arg scope "${scope}" 'fromjson? | select(.type == "orca_server_ready" and .pairing.available == true and .pairing.scope == $scope) | [.pairing.url, .pairing.endpoint] | @tsv' "${log}" | tail -n 1)"
-        if [[ -n "${result}" ]]; then
+        while true; do
+            line=""
+            if IFS= read -r line <&"${log_fd}"; then
+                line="${fragment}${line}"
+                fragment=""
+                parsed="$(jq -Rr --arg scope "${scope}" 'fromjson? | select(.type == "orca_server_ready" and .pairing.available == true and .pairing.scope == $scope) | [.pairing.url, .pairing.endpoint] | @tsv' <<<"${line}")"
+                [[ -z "${parsed}" ]] || result="${parsed}"
+            else
+                fragment+="${line}"
+                break
+            fi
+        done
+        if [[ -n "${result:-}" ]]; then
             IFS=$'\t' read -r pairing_url pairing_endpoint <<<"${result}"
+            exec {log_fd}<&-
             return
         fi
         kill -0 "${orca_pid}" 2>/dev/null || wait "${orca_pid}"
         sleep 0.5
     done
+    exec {log_fd}<&-
     cat "${log}" >&2
     echo "Orca did not provide a ${label} pairing URL within 60 seconds." >&2
     return 1

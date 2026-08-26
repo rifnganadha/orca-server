@@ -1,9 +1,13 @@
+# syntax=docker/dockerfile:1
+
 FROM debian:bookworm-slim AS extractor
 
 ARG ORCA_VERSION=v1.4.188
 ARG TARGETARCH
 
-RUN apt-get update \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl file \
     && rm -rf /var/lib/apt/lists/*
 
@@ -31,7 +35,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LIBGL_ALWAYS_SOFTWARE=1 \
     ORCA_PORT=6770
 
-RUN apt-get update \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update \
     && apt-get install -y --no-install-recommends \
         apache2-utils \
         bash \
@@ -64,10 +70,18 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --shell /bin/bash orca
 
+RUN curl -fsSL https://kilo.ai/cli/install | bash \
+    && mv /root/.kilo/bin/kilo /usr/local/bin/kilo \
+    && rm -rf /root/.kilo \
+    && kilo --version
+
 COPY --from=extractor /opt/orca/squashfs-root /opt/orca/squashfs-root
 COPY docker/nginx /usr/local/share/orca-server/nginx
 COPY docker/web /usr/local/share/orca-server/web
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY --chown=orca:orca .kilo/kilo.jsonc /home/orca/.config/kilo/kilo.jsonc
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
+    && chmod 600 /home/orca/.config/kilo/kilo.jsonc
 
 USER orca
 WORKDIR /home/orca

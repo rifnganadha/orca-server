@@ -126,6 +126,19 @@ docker compose exec orca gh auth status
 
 Follow the device-login prompt in your browser. GitHub CLI stores its credentials under `/home/orca/.config/gh`, which persists in the `orca-home` volume.
 
+The image also includes Kilo Code CLI. It is installed during the image build with the official installer:
+
+```bash
+curl -fsSL https://kilo.ai/cli/install | bash
+```
+
+Run it in the container with:
+
+```bash
+docker compose exec orca kilo --version
+docker compose exec orca kilo
+```
+
 In Orca, open **Settings > Remote Orca Servers > Advanced** and configure GitHub credentials as server-owned instead of **Local Windows**, then use **Re-check** in Integrations.
 
 To authenticate and register supported managed agent accounts, open a shell in the container:
@@ -156,12 +169,18 @@ Compose derives volume names from the project directory. Confirm the actual name
 
 ## Upgrade
 
-Change `ORCA_VERSION` in `.env` to an explicit release tag, then rebuild:
+Change `ORCA_VERSION` in `.env` to an explicit release tag, then rebuild using the existing BuildKit cache:
+
+```bash
+docker compose build --pull
+docker compose up -d
+docker compose logs -f orca
+```
+
+BuildKit cache mounts reuse downloaded Debian packages between builds, so normal release upgrades avoid downloading unchanged packages again. To force a full dependency refresh or troubleshoot a potentially stale build, use the explicit no-cache variant:
 
 ```bash
 docker compose build --pull --no-cache
-docker compose up -d
-docker compose logs -f orca
 ```
 
 Back up first. New Orca versions can migrate persisted state, so rolling back requires restoring the matching state backup as well as the older image.
