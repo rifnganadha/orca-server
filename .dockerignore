@@ -1,5 +1,8 @@
 .env
+.codebase-memory
 .git
 .gitignore
+.kilo/*
+!.kilo/kilo.jsonc
 .vscode
 README.md

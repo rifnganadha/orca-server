@@ -4,6 +4,7 @@ services:
       context: .
       args:
         ORCA_VERSION: ${ORCA_VERSION:-v1.4.188}
+        CODEBASE_MEMORY_VERSION: ${CODEBASE_MEMORY_VERSION:-v0.10.8}
     image: orca-server:${ORCA_VERSION:-v1.4.188}
     container_name: orca-server
     hostname: ${ORCA_HOSTNAME:-orca-server}
@@ -12,6 +13,7 @@ services:
     stop_grace_period: 30s
     environment:
       ORCA_PORT: ${ORCA_PORT:-6770}
+      CODEBASE_MEMORY_PORT: ${CODEBASE_MEMORY_PORT:-9749}
       ORCA_PAIRING_ADDRESS: ${ORCA_PAIRING_ADDRESS:?Set ORCA_PAIRING_ADDRESS in .env}
       ORCA_WEB_USER: ${ORCA_WEB_USER:?Set ORCA_WEB_USER in .env}
       ORCA_WEB_PASSWORD: ${ORCA_WEB_PASSWORD:?Set ORCA_WEB_PASSWORD in .env}
@@ -21,12 +23,13 @@ services:
       KILO_API_KEY: ${KILO_API_KEY:-}
     ports:
       - "${ORCA_PORT:-6770}:6768"
+      - "${CODEBASE_MEMORY_PORT:-9749}:9750"
     volumes:
       - orca-home:/home/orca
     tmpfs:
       - /home/orca/.cache:uid=1000,gid=1000,mode=0700
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6768'"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6768 && exec 4<>/dev/tcp/127.0.0.1/9750'"]
       interval: 30s
       timeout: 5s
       retries: 5

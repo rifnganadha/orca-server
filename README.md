@@ -13,13 +13,14 @@ Run the Orca ADE runtime on an always-on Linux VPS and pair desktop or mobile cl
 |       |-- landing.html
 |       |-- login.html
 |       `-- pairing.html
+|-- .kilo/kilo.jsonc
 |-- .env.example
 |-- Dockerfile
 |-- docker-compose.yml
 `-- README.md
 ```
 
-The repository root contains operator-facing build, configuration, and documentation files. Container implementation details live under `docker/`; generated credentials, pairing pages, and nginx configuration remain ephemeral at runtime.
+The repository root contains operator-facing build, configuration, and documentation files. Container implementation details live under `docker/`; the tracked `.kilo/kilo.jsonc` is the complete Kilo configuration installed into the persistent home directory on every container start. Local `.kilo` packages, worktrees, generated credentials, pairing pages, and nginx configuration are excluded from the image.
 
 ## Requirements
 
@@ -47,6 +48,8 @@ ORCA_PAIRING_ADDRESS=https://orca.example.com
 ```
 
 Keep only one `ORCA_PAIRING_ADDRESS` assignment active in `.env`. `ORCA_PORT` controls the host port published to clients and is appended to a bare IP address or hostname. Include an explicit port in `ORCA_PAIRING_ADDRESS` when external routing uses a different one.
+
+`CODEBASE_MEMORY_PORT` publishes the authenticated Codebase Memory graph UI and defaults to `9749`.
 
 `ORCA_HOSTNAME` controls the stable host name shown in terminal prompts and tab titles. It defaults to `orca-server`; use only letters, digits, periods, and hyphens.
 
@@ -126,7 +129,7 @@ docker compose exec orca gh auth status
 
 Follow the device-login prompt in your browser. GitHub CLI stores its credentials under `/home/orca/.config/gh`, which persists in the `orca-home` volume.
 
-The image also includes Kilo Code CLI. It is installed during the image build with the official installer:
+The image also includes Kilo Code CLI and Codebase Memory MCP. Kilo is installed during the image build with the official installer:
 
 ```bash
 curl -fsSL https://kilo.ai/cli/install | bash
@@ -138,6 +141,19 @@ Run it in the container with:
 docker compose exec orca kilo --version
 docker compose exec orca kilo
 ```
+
+Codebase Memory is pinned by `CODEBASE_MEMORY_VERSION`, downloaded for the target architecture, and verified against the release checksum during the image build. It is registered as an enabled local MCP server in Kilo, and its explicitly configured cache and indexes persist under `/home/orca/.local/share/codebase-memory-mcp` in the `orca-home` volume. Kilo auto-updates and session sharing are disabled in this immutable server image; upgrades happen through deliberate Docker rebuilds.
+
+The graph UI runs independently of Kilo sessions at `http://localhost:9749`. Nginx protects it with the same `ORCA_WEB_USER` and `ORCA_WEB_PASSWORD` credentials as Orca Web. Set `CODEBASE_MEMORY_PORT` to publish another host port, and keep this port behind the same private network or authenticated reverse proxy used for Orca.
+
+Verify the installation and MCP registration with:
+
+```bash
+docker compose exec orca codebase-memory-mcp --version
+docker compose exec orca kilo mcp list
+```
+
+Start Kilo from a repository directory and ask it to index the project. Codebase Memory then keeps the local graph available to later Kilo sessions.
 
 In Orca, open **Settings > Remote Orca Servers > Advanced** and configure GitHub credentials as server-owned instead of **Local Windows**, then use **Re-check** in Integrations.
 

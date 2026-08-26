@@ -3,6 +3,7 @@
 FROM debian:bookworm-slim AS extractor
 
 ARG ORCA_VERSION=v1.4.188
+ARG CODEBASE_MEMORY_VERSION=v0.10.8
 ARG TARGETARCH
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -28,6 +29,21 @@ RUN case "${TARGETARCH}" in \
     && ./orca-linux.AppImage --appimage-extract \
     && rm orca-linux.AppImage \
     && chmod -R a+rX squashfs-root
+
+RUN case "${TARGETARCH}" in \
+        amd64|arm64) cbm_arch="${TARGETARCH}" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && archive="codebase-memory-mcp-linux-${cbm_arch}-portable.tar.gz" \
+    && release_url="https://github.com/DeusData/codebase-memory-mcp/releases/download/${CODEBASE_MEMORY_VERSION}" \
+    && curl -fL --retry 3 "${release_url}/${archive}" -o "${archive}" \
+    && curl -fL --retry 3 "${release_url}/checksums.txt" -o checksums.txt \
+    && grep "  ${archive}$" checksums.txt | sha256sum --check --strict \
+    && mkdir codebase-memory \
+    && tar --no-same-owner -xzf "${archive}" -C codebase-memory \
+    && test -x codebase-memory/codebase-memory-mcp \
+    && codebase-memory/codebase-memory-mcp --version \
+    && rm "${archive}" checksums.txt
 
 FROM debian:bookworm-slim
 
@@ -76,12 +92,15 @@ RUN curl -fsSL https://kilo.ai/cli/install | bash \
     && kilo --version
 
 COPY --from=extractor /opt/orca/squashfs-root /opt/orca/squashfs-root
+COPY --from=extractor /opt/orca/codebase-memory/codebase-memory-mcp /usr/local/bin/codebase-memory-mcp
 COPY docker/nginx /usr/local/share/orca-server/nginx
 COPY docker/web /usr/local/share/orca-server/web
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-COPY --chown=orca:orca .kilo/kilo.jsonc /home/orca/.config/kilo/kilo.jsonc
+COPY .kilo/kilo.jsonc /usr/local/share/orca-server/kilo/kilo.jsonc
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
-    && chmod 600 /home/orca/.config/kilo/kilo.jsonc
+    && chmod 755 /usr/local/bin/codebase-memory-mcp \
+    && chmod 644 /usr/local/share/orca-server/kilo/kilo.jsonc \
+    && codebase-memory-mcp --version
 
 USER orca
 WORKDIR /home/orca
