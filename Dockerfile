@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1
 
+ARG DOCKER_CLI_VERSION=29.1.3
+
+FROM docker:${DOCKER_CLI_VERSION}-cli AS docker-cli
+
 FROM debian:bookworm-slim AS extractor
 
 ARG ORCA_VERSION=v1.4.188
@@ -93,18 +97,23 @@ RUN curl -fsSL https://kilo.ai/cli/install | bash \
 
 COPY --from=extractor /opt/orca/squashfs-root /opt/orca/squashfs-root
 COPY --from=extractor /opt/orca/codebase-memory/codebase-memory-mcp /usr/local/bin/codebase-memory-mcp
+COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=docker-cli /usr/local/libexec/docker/cli-plugins /usr/local/libexec/docker/cli-plugins
 COPY docker/nginx /usr/local/share/orca-server/nginx
 COPY docker/web /usr/local/share/orca-server/web
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-COPY .kilo/kilo.jsonc /usr/local/share/orca-server/kilo/kilo.jsonc
+COPY docker/kilo/kilo.jsonc /usr/local/share/orca-server/kilo/kilo.jsonc
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
     && chmod 755 /usr/local/bin/codebase-memory-mcp \
+    && chmod 755 /usr/local/bin/docker /usr/local/libexec/docker/cli-plugins/* \
     && chmod 644 /usr/local/share/orca-server/kilo/kilo.jsonc \
-    && codebase-memory-mcp --version
+    && codebase-memory-mcp --version \
+    && docker --version \
+    && docker compose version
 
 USER orca
 WORKDIR /home/orca
 
-EXPOSE 6768
+EXPOSE 6768 9750
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

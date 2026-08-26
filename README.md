@@ -1,163 +1,214 @@
 # Orca Remote Server on Docker
 
-Run the Orca ADE runtime on an always-on Linux VPS and pair desktop or mobile clients with it. This image downloads a pinned Orca AppImage, extracts it without FUSE, and runs `orca serve` as an unprivileged user.
+Run [Orca](https://www.onorca.dev/) as an always-on, headless Docker service and pair desktop, mobile, or browser clients with it.
 
-## Project layout
+This image extracts a pinned Orca AppImage without FUSE, runs `orca serve` as an unprivileged user, persists the Orca home directory, and includes the tools needed for remote agent workflows.
 
-```text
-.
-|-- docker/
-|   |-- entrypoint.sh
-|   |-- nginx/nginx.conf
-|   `-- web/
-|       |-- landing.html
-|       |-- login.html
-|       `-- pairing.html
-|-- .kilo/kilo.jsonc
-|-- .env.example
-|-- Dockerfile
-|-- docker-compose.yml
-`-- README.md
-```
+[Quick Start](#quick-start) | [Configuration](#configuration) | [Project Containers](#run-project-containers) | [Operations](#operations) | [Troubleshooting](#troubleshooting) | [Security](#security)
 
-The repository root contains operator-facing build, configuration, and documentation files. Container implementation details live under `docker/`; the tracked `.kilo/kilo.jsonc` is the complete Kilo configuration installed into the persistent home directory on every container start. Local `.kilo` packages, worktrees, generated credentials, pairing pages, and nginx configuration are excluded from the image.
+## Features
+
+- Headless Orca runtime for `amd64` and `arm64`
+- Authenticated Orca Web, Desktop pairing, and Mobile pairing pages
+- Persistent projects, worktrees, credentials, configuration, and terminal history
+- Kilo Code CLI with a dynamic OpenAI-compatible provider
+- Codebase Memory MCP with an authenticated graph UI
+- GitHub CLI and non-interactive token support
+- Docker CLI, Compose, and Buildx through the host Docker socket
+- Deliberate, pinned upgrades with checksum verification for Codebase Memory
+- Unprivileged runtime without FUSE or `--privileged`
 
 ## Requirements
 
 - Docker Engine with the Compose plugin
-- An `amd64` or `arm64` Linux VPS
-- A private route such as Tailscale/WireGuard, or an authenticated TLS reverse proxy with WebSocket upgrade support
+- An `amd64` or `arm64` Linux host, or Docker Desktop
+- A private network such as Tailscale/WireGuard, or an authenticated TLS reverse proxy with WebSocket support
 
-## Configure
+## Quick Start
+
+1. Create the local environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and replace `ORCA_PAIRING_ADDRESS` with an address clients can reach. Choose one of these patterns:
+2. Set at least these values in `.env`:
 
 ```dotenv
-# Private LAN address
 ORCA_PAIRING_ADDRESS=192.168.1.4
-
-# Tailscale address
-ORCA_PAIRING_ADDRESS=100.64.0.10
-
-# Authenticated TLS reverse proxy
-ORCA_PAIRING_ADDRESS=https://orca.example.com
-```
-
-Keep only one `ORCA_PAIRING_ADDRESS` assignment active in `.env`. `ORCA_PORT` controls the host port published to clients and is appended to a bare IP address or hostname. Include an explicit port in `ORCA_PAIRING_ADDRESS` when external routing uses a different one.
-
-`CODEBASE_MEMORY_PORT` publishes the authenticated Codebase Memory graph UI and defaults to `9749`.
-
-`ORCA_HOSTNAME` controls the stable host name shown in terminal prompts and tab titles. It defaults to `orca-server`; use only letters, digits, periods, and hyphens.
-
-`GIT_USER_NAME` and `GIT_USER_EMAIL` are required. Orca needs a valid Git author identity when creating a project and for every commit made by Orca or its agents. Set both values in `.env` before starting the service:
-
-```dotenv
-GIT_USER_NAME=Your Name
-GIT_USER_EMAIL=you@example.com
-```
-
-Docker Compose stops with a configuration error if either value is missing or empty. On every start, the entrypoint applies them to the global Git configuration stored in the persistent Orca home.
-
-Browser HTTP requests are protected by a login form backed by HTTP Basic credential validation and a per-container session cookie. Set a unique username and strong password in `.env`; Compose refuses to start without both values:
-
-```dotenv
 ORCA_WEB_USER=orca
 ORCA_WEB_PASSWORD=replace-with-a-long-random-password
+GIT_USER_NAME=Your Name
+GIT_USER_EMAIL=you@example.com
+KILO_API_KEY=replace-with-provider-api-key
 ```
 
-Enter these credentials when opening Orca Web or the `/desktop` and `/mobile` pairing pages. WebSocket traffic still uses Orca's pairing grants so native Desktop and Mobile clients continue to pair normally. Use HTTPS through Tailscale or an authenticated TLS reverse proxy when sending credentials over a network you do not fully trust.
+`ORCA_PAIRING_ADDRESS` must be reachable by the clients you intend to pair. Use a LAN IP, Tailscale address, hostname, or HTTPS reverse-proxy URL.
 
-The service publishes `ORCA_PORT` on all host interfaces so trusted private-network clients can connect. Use host firewall rules to restrict access to your LAN, Tailscale, WireGuard, or authenticated reverse proxy; do not expose it directly to the public Internet.
-
-On a Windows Docker host, allow the published port on Private networks from an elevated PowerShell prompt:
-
-```powershell
-New-NetFirewallRule -DisplayName "Orca Server TCP 6770" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 6770 -Profile Private
-```
-
-If `ORCA_PORT` is changed, use the same value in the firewall rule. The phone and Windows host must also be on the same LAN without guest-network or access-point client isolation.
-
-## Start and pair
+3. Set the Docker socket group ID. Docker Desktop commonly uses `0`; Linux hosts can query it directly:
 
 ```bash
-docker compose build
-docker compose up -d
+stat -c '%g' /var/run/docker.sock
+```
+
+```dotenv
+DOCKER_GID=0
+```
+
+4. Build and start Orca:
+
+```bash
+docker compose up -d --build
 docker compose logs -f orca
 ```
 
-Open `http://localhost:6770` on the Docker host to use Orca Web. Existing paired browsers continue using their saved runtime grant.
-
-Open `http://localhost:6770/desktop` to display the Desktop pairing QR and full runtime-scoped pairing URI.
-
-Open `http://localhost:6770/mobile` to display a separate Mobile pairing QR. In Orca Mobile, choose **Pair Desktop** and scan the code. It advertises `ORCA_PAIRING_ADDRESS`, so the phone connects through the LAN, Tailscale, or reverse-proxy address configured in `.env`.
-
-The entrypoint creates independent credentials for each client: `/desktop` and Orca Web use the runtime-scoped grant, while `/mobile` serves a mobile-scoped QR with limited access. Treat pairing URLs and QR codes as passwords. Do not put them in source control, browser history sync, screenshots, or issue trackers.
-
-Check status with:
+5. Confirm service health:
 
 ```bash
 docker compose ps
 ```
 
-## Authenticate agents
+## Endpoints
 
-Agent CLIs and credentials live on the server, not on the paired client. The image includes GitHub CLI. For non-interactive authentication at startup, set a fine-grained token in `.env`:
+| URL | Purpose | Authentication |
+|---|---|---|
+| `http://localhost:6770` | Orca Web | `ORCA_WEB_USER` / `ORCA_WEB_PASSWORD` |
+| `http://localhost:6770/desktop` | Desktop pairing QR | Orca Web credentials |
+| `http://localhost:6770/mobile` | Mobile pairing QR | Orca Web credentials |
+| `http://localhost:9749` | Codebase Memory graph UI | Orca Web credentials |
+
+The default host ports are controlled by `ORCA_PORT` and `CODEBASE_MEMORY_PORT`.
+
+Pairing URLs and QR codes are credentials. Do not put them in source control, screenshots, issue trackers, or synchronized browser history.
+
+## Configuration
+
+All operator configuration lives in `.env`. Compose refuses to start when required values are missing.
+
+### Orca
+
+| Variable | Default | Description |
+|---|---|---|
+| `ORCA_VERSION` | `v1.4.188` | Pinned Orca release downloaded during the build |
+| `ORCA_PAIRING_ADDRESS` | required | Address advertised to Desktop and Mobile clients |
+| `ORCA_PORT` | `6770` | Host port for Orca Web and pairing traffic |
+| `ORCA_HOSTNAME` | `orca-server` | Hostname shown in terminals and tab titles |
+| `ORCA_WEB_USER` | required | Browser and graph UI username |
+| `ORCA_WEB_PASSWORD` | required | Browser and graph UI password |
+| `GIT_USER_NAME` | required | Global Git commit author name |
+| `GIT_USER_EMAIL` | required | Global Git commit author email |
+| `GH_TOKEN` | empty | Optional fine-grained GitHub token |
+
+Pairing address examples:
 
 ```dotenv
-GH_TOKEN=github_pat_your_token
+# Private LAN:
+ORCA_PAIRING_ADDRESS=192.168.1.4
+
+# Tailscale:
+ORCA_PAIRING_ADDRESS=100.64.0.10
+
+# TLS reverse proxy:
+ORCA_PAIRING_ADDRESS=https://orca.example.com
 ```
 
-Recreate the service after changing the token:
+A bare address receives `ORCA_PORT` automatically. Include an explicit port in `ORCA_PAIRING_ADDRESS` when external routing uses another port.
+
+### Kilo Provider
+
+The entrypoint renders Kilo's provider configuration from `.env` every time the container starts. Provider changes require container recreation, not an image rebuild.
+
+| Variable | Default | Description |
+|---|---|---|
+| `KILO_PROVIDER_ID` | `9router` | Lowercase provider key used in `provider/model` |
+| `KILO_PROVIDER_NAME` | `9Router` | Provider display name |
+| `KILO_PROVIDER_NPM` | `@ai-sdk/openai-compatible` | AI SDK provider package |
+| `KILO_BASE_URL` | `https://9router.akasia.dev/v1` | OpenAI-compatible API base URL |
+| `KILO_MODEL_ID` | `gpt-5.6-sol` | Model identifier sent to the provider |
+| `KILO_MODEL_NAME` | `GPT-5.6 SOL` | Model display name |
+| `KILO_API_KEY` | empty | Provider API key |
+
+Example:
+
+```dotenv
+KILO_PROVIDER_ID=9router
+KILO_PROVIDER_NAME=9Router
+KILO_PROVIDER_NPM=@ai-sdk/openai-compatible
+KILO_BASE_URL=https://9router.akasia.dev/v1
+KILO_MODEL_ID=gpt-5.6-sol
+KILO_MODEL_NAME=GPT-5.6 SOL
+KILO_API_KEY=replace-with-provider-api-key
+```
+
+`KILO_PROVIDER_ID` accepts lowercase letters, digits, periods, underscores, and hyphens. The generated config keeps the API key as `{env:KILO_API_KEY}` instead of writing the secret into the file.
+
+Apply and inspect provider changes:
 
 ```bash
-docker compose up -d --force-recreate
-docker compose exec orca gh auth status
+docker compose up -d --force-recreate orca
+docker compose exec orca kilo debug config
 ```
 
-The entrypoint configures GitHub CLI and Git HTTPS authentication whenever `GH_TOKEN` is set. The token remains a runtime environment variable; it is not copied into the image or written to the generated pairing pages. Keep `.env` out of source control and grant only the repository permissions Orca needs.
+### Codebase Memory
 
-Alternatively, leave `GH_TOKEN` empty and authenticate once with GitHub's device flow:
+| Variable | Default | Description |
+|---|---|---|
+| `CODEBASE_MEMORY_VERSION` | `v0.10.8` | Pinned Codebase Memory release |
+| `CODEBASE_MEMORY_PORT` | `9749` | Authenticated graph UI host port |
 
-```bash
-docker compose exec orca gh auth login --web --git-protocol https
-docker compose exec orca gh auth status
-```
+The build downloads the architecture-specific portable binary and validates its published SHA-256 checksum. Graph data persists at `/home/orca/.local/share/codebase-memory-mcp` in the `orca-home` volume.
 
-Follow the device-login prompt in your browser. GitHub CLI stores its credentials under `/home/orca/.config/gh`, which persists in the `orca-home` volume.
-
-The image also includes Kilo Code CLI and Codebase Memory MCP. Kilo is installed during the image build with the official installer:
-
-```bash
-curl -fsSL https://kilo.ai/cli/install | bash
-```
-
-Run it in the container with:
-
-```bash
-docker compose exec orca kilo --version
-docker compose exec orca kilo
-```
-
-Codebase Memory is pinned by `CODEBASE_MEMORY_VERSION`, downloaded for the target architecture, and verified against the release checksum during the image build. It is registered as an enabled local MCP server in Kilo, and its explicitly configured cache and indexes persist under `/home/orca/.local/share/codebase-memory-mcp` in the `orca-home` volume. Kilo auto-updates and session sharing are disabled in this immutable server image; upgrades happen through deliberate Docker rebuilds.
-
-The graph UI runs independently of Kilo sessions at `http://localhost:9749`. Nginx protects it with the same `ORCA_WEB_USER` and `ORCA_WEB_PASSWORD` credentials as Orca Web. Set `CODEBASE_MEMORY_PORT` to publish another host port, and keep this port behind the same private network or authenticated reverse proxy used for Orca.
-
-Verify the installation and MCP registration with:
+Verify the integration:
 
 ```bash
 docker compose exec orca codebase-memory-mcp --version
 docker compose exec orca kilo mcp list
 ```
 
-Start Kilo from a repository directory and ask it to index the project. Codebase Memory then keeps the local graph available to later Kilo sessions.
+### Docker Engine
 
-In Orca, open **Settings > Remote Orca Servers > Advanced** and configure GitHub credentials as server-owned instead of **Local Windows**, then use **Re-check** in Integrations.
+| Variable | Default | Description |
+|---|---|---|
+| `DOCKER_CLI_VERSION` | `29.1.3` | Docker CLI image used during the build |
+| `DOCKER_GID` | `0` | Supplementary group allowed to access `docker.sock` |
 
-To authenticate and register supported managed agent accounts, open a shell in the container:
+The container mounts `/var/run/docker.sock` and uses Docker-outside-of-Docker. Commands inside Orca control the host engine:
+
+```bash
+docker compose exec orca docker version
+docker compose exec orca docker compose version
+docker compose exec orca docker ps
+```
+
+Docker socket access is effectively root-level host access. See [Security](#security) before enabling untrusted agent access.
+
+## Agent Authentication
+
+### GitHub
+
+Set a fine-grained token for non-interactive startup:
+
+```dotenv
+GH_TOKEN=github_pat_your_token
+```
+
+```bash
+docker compose up -d --force-recreate orca
+docker compose exec orca gh auth status
+```
+
+Alternatively, use GitHub's device flow once:
+
+```bash
+docker compose exec orca gh auth login --web --git-protocol https
+docker compose exec orca gh auth status
+```
+
+GitHub CLI stores credentials under `/home/orca/.config/gh` in the persistent home volume.
+
+### Managed Agents
+
+Open a container shell to register supported accounts:
 
 ```bash
 docker compose exec orca bash
@@ -166,26 +217,80 @@ orca account add --agent codex
 orca account list
 ```
 
-The extracted AppImage may not place the `orca` shim on `PATH`. In that case invoke `/opt/orca/squashfs-root/AppRun` for available headless commands, or install the CLI from Orca using the current official instructions. Any agent CLI installed interactively inside the container is lost when the image is replaced; add repeatable installations to the Dockerfile or mount a dedicated tool volume.
+In Orca, configure integration credentials as server-owned under **Settings > Remote Orca Servers > Advanced**.
 
-Repositories and worktrees are stored under `/home/orca/orca`, Orca's default project directory. Projects, Orca state, terminal history, paired-device keys, and user configuration all persist in the `orca-home` volume. The disposable application cache uses a memory-backed mount, so it does not inflate persistent-volume backups and is cleared whenever the container is recreated.
+## Run Project Containers
 
-## Back up
+Orca projects live under `/home/orca/orca/projects`. Docker and Compose commands can run directly from an Orca terminal:
 
-Stop Orca for a consistent backup, then archive the home volume:
+```bash
+cd /home/orca/orca/projects/example
+docker compose up -d
+docker compose ps
+docker compose logs -f
+```
+
+### Publish Application Ports
+
+Map a host port to the port on which the child application actually listens. For example, `docker/welcome-to-docker` listens on container port `80`:
+
+```yaml
+services:
+  app:
+    image: docker/welcome-to-docker
+    container_name: welcome
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+```
+
+Open the published application from Windows or Orca Web:
+
+```text
+http://localhost:3001
+```
+
+Processes running inside `orca-server` have a separate loopback interface. From an Orca terminal or agent tool, use Docker Desktop's host gateway:
+
+```text
+http://host.docker.internal:3001
+```
+
+A mapping such as `3001:3001` only works when the child application listens on port `3001`. If it listens on `80`, use `3001:80`.
+
+### Bind-Mount Caveat
+
+The host daemon resolves bind-mount source paths on the host, not inside `orca-server`. A container path such as `/home/orca/orca/projects/example` cannot be passed directly to `docker run -v`. Use a named volume, a host bind-mounted project root, or a Docker build context.
+
+## Operations
+
+### Status and Logs
+
+```bash
+docker compose ps
+docker compose logs -f orca
+docker compose exec orca kilo mcp list
+```
+
+### Backup
+
+Stop Orca for a consistent archive of the persistent home volume:
 
 ```bash
 docker compose stop orca
 mkdir -p backups
-docker run --rm -v orca-server_orca-home:/source:ro -v "$PWD/backups:/backup" alpine tar czf /backup/orca-home.tgz -C /source .
+docker run --rm \
+  -v orca-server_orca-home:/source:ro \
+  -v "$PWD/backups:/backup" \
+  alpine tar czf /backup/orca-home.tgz -C /source .
 docker compose start orca
 ```
 
-Compose derives volume names from the project directory. Confirm the actual names with `docker volume ls` before running backup commands if you changed the Compose project name.
+Compose derives volume names from the project directory. Confirm the actual name with `docker volume ls` if you changed the Compose project name.
 
-## Upgrade
+### Upgrade
 
-Change `ORCA_VERSION` in `.env` to an explicit release tag, then rebuild using the existing BuildKit cache:
+Update pinned versions in `.env`, back up the home volume, then rebuild:
 
 ```bash
 docker compose build --pull
@@ -193,22 +298,94 @@ docker compose up -d
 docker compose logs -f orca
 ```
 
-BuildKit cache mounts reuse downloaded Debian packages between builds, so normal release upgrades avoid downloading unchanged packages again. To force a full dependency refresh or troubleshoot a potentially stale build, use the explicit no-cache variant:
+BuildKit cache mounts reuse downloaded Debian packages. Use `docker compose build --pull --no-cache` only for a full dependency refresh or cache troubleshooting.
+
+New Orca releases can migrate persisted state. Restoring an older image may also require restoring the matching volume backup.
+
+## Troubleshooting
+
+### Child App Returns an Empty Response
+
+Confirm the internal listener and published mapping:
 
 ```bash
-docker compose build --pull --no-cache
+docker exec <container> ss -lntp
+docker logs <container>
+docker inspect <container> --format '{{json .NetworkSettings.Ports}}'
 ```
 
-Back up first. New Orca versions can migrate persisted state, so rolling back requires restoring the matching state backup as well as the older image.
+The host side of `HOST:CONTAINER` is the browser-facing port. The container side must match the application's internal listener.
 
-## Security and limitations
+### Docker Permission Denied
 
-- Never publish port `6768` directly to the public Internet. Prefer Tailscale, WireGuard, SSH forwarding, or an authenticated TLS reverse proxy.
-- A reverse proxy must support WebSocket upgrades and route the path used in `ORCA_PAIRING_ADDRESS`.
-- Keep the pairing URL private and rotate/revoke grants from Orca when access changes.
-- The container runs without FUSE and does not require `--privileged`.
-- Orca's embedded browser uses Xvfb and software rendering. Desktop computer-use features are not meaningful on a headless VPS.
-- Headless Orca does not auto-update; upgrades are deliberate image rebuilds.
-- Orca does not provide the VPS or agent subscriptions. You supply the host, network, provider CLIs, and credentials.
+Check socket ownership on the host and group membership inside Orca:
 
-Official references: [Remote Orca Servers](https://www.onorca.dev/docs/remote-servers) and [Headless Linux Server](https://github.com/stablyai/orca/blob/main/docs/reference/headless-linux-server.md).
+```bash
+stat -c '%u %g %a' /var/run/docker.sock
+docker compose exec orca id
+docker compose exec orca stat -c '%u %g %a' /var/run/docker.sock
+```
+
+Set `DOCKER_GID` to the socket's group ID and recreate the service.
+
+### Client Cannot Pair
+
+- Confirm `ORCA_PAIRING_ADDRESS` is reachable from the client.
+- Keep the host firewall open for `ORCA_PORT` only on trusted networks.
+- Disable guest-network or access-point client isolation.
+- Ensure a reverse proxy supports WebSocket upgrades.
+
+On a Windows Docker host, allow the default port on Private networks from an elevated PowerShell prompt:
+
+```powershell
+New-NetFirewallRule -DisplayName "Orca Server TCP 6770" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 6770 -Profile Private
+```
+
+## Persistence
+
+The `orca-home` volume stores:
+
+- Projects and worktrees under `/home/orca/orca`
+- Orca state and paired-device keys
+- Kilo, GitHub CLI, and agent credentials
+- Terminal history and user configuration
+- Codebase Memory indexes
+
+`/home/orca/.cache` is a disposable tmpfs mount and is cleared when the container is recreated.
+
+## Security
+
+- Never expose Orca or the graph UI directly to the public Internet.
+- Prefer Tailscale, WireGuard, SSH forwarding, or an authenticated TLS reverse proxy.
+- Treat pairing grants and QR codes as passwords.
+- Use a long, unique `ORCA_WEB_PASSWORD` and HTTPS on untrusted networks.
+- Restrict `GH_TOKEN` to the minimum repository permissions required.
+- Docker socket access allows agents to start privileged containers, mount host filesystems, inspect other containers, and access host-managed secrets.
+- Do not provide this deployment to untrusted users or agents.
+- The container itself runs as the unprivileged `orca` user and does not require `--privileged`.
+- Headless Orca does not auto-update; upgrades are explicit image rebuilds.
+- Embedded browser computer-use features are limited on a headless VPS.
+
+## Project Layout
+
+```text
+.
+|-- .codebase-memory/       # Optional shared graph snapshot
+|-- docker/
+|   |-- entrypoint.sh       # Startup, configuration, pairing, and UI lifecycle
+|   |-- kilo/kilo.jsonc     # Provider-neutral Kilo template
+|   |-- nginx/nginx.conf    # Authenticated Orca and graph UI proxy
+|   `-- web/                # Login, landing, pairing, and compatibility assets
+|-- .env.example            # Operator configuration template
+|-- Dockerfile              # Multi-stage Orca, Docker CLI, Kilo, and MCP image
+|-- docker-compose.yml      # Runtime service, ports, volume, and socket mount
+`-- README.md
+```
+
+Local `.kilo/` state is excluded from Git and Docker. Runtime credentials, rendered pairing pages, and generated nginx configuration remain ephemeral.
+
+## References
+
+- [Remote Orca Servers](https://www.onorca.dev/docs/remote-servers)
+- [Headless Linux Server](https://github.com/stablyai/orca/blob/main/docs/reference/headless-linux-server.md)
+- [Codebase Memory MCP](https://github.com/DeusData/codebase-memory-mcp)

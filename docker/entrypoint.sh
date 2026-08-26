@@ -16,12 +16,52 @@ if [[ -z "${GIT_USER_NAME:-}" || -z "${GIT_USER_EMAIL:-}" ]]; then
     exit 2
 fi
 
+kilo_provider_id="${KILO_PROVIDER_ID:-9router}"
+kilo_provider_name="${KILO_PROVIDER_NAME:-9Router}"
+kilo_provider_npm="${KILO_PROVIDER_NPM:-@ai-sdk/openai-compatible}"
+kilo_base_url="${KILO_BASE_URL:-https://9router.akasia.dev/v1}"
+kilo_model_id="${KILO_MODEL_ID:-gpt-5.6-sol}"
+kilo_model_name="${KILO_MODEL_NAME:-GPT-5.6 SOL}"
+
+if [[ ! "${kilo_provider_id}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
+    echo "KILO_PROVIDER_ID must contain only lowercase letters, digits, periods, underscores, or hyphens." >&2
+    exit 2
+fi
+if [[ -z "${kilo_provider_name}" || -z "${kilo_provider_npm}" || -z "${kilo_base_url}" || -z "${kilo_model_id}" || -z "${kilo_model_name}" ]]; then
+    echo "Kilo provider and model settings must not be empty." >&2
+    exit 2
+fi
+
 git config --global user.name "${GIT_USER_NAME}"
 git config --global user.email "${GIT_USER_EMAIL}"
 
 mkdir -p /home/orca/.config/kilo
-install -m 600 /usr/local/share/orca-server/kilo/kilo.jsonc \
-    /home/orca/.config/kilo/kilo.jsonc
+kilo_config="/home/orca/.config/kilo/kilo.jsonc"
+jq \
+    --arg provider_id "${kilo_provider_id}" \
+    --arg provider_name "${kilo_provider_name}" \
+    --arg provider_npm "${kilo_provider_npm}" \
+    --arg base_url "${kilo_base_url}" \
+    --arg model_id "${kilo_model_id}" \
+    --arg model_name "${kilo_model_name}" \
+    '.model = ($provider_id + "/" + $model_id)
+    | .small_model = .model
+    | .enabled_providers = [$provider_id]
+    | .provider = {
+        ($provider_id): {
+          npm: $provider_npm,
+          name: $provider_name,
+          options: {
+            baseURL: $base_url,
+            apiKey: "{env:KILO_API_KEY}"
+          },
+          models: {
+            ($model_id): {name: $model_name}
+          }
+        }
+      }' \
+    /usr/local/share/orca-server/kilo/kilo.jsonc >"${kilo_config}"
+chmod 600 "${kilo_config}"
 
 if [[ -n "${GH_TOKEN:-}" ]]; then
     gh config set git_protocol https --host github.com

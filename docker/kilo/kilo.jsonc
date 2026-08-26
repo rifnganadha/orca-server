@@ -1,9 +1,6 @@
 {
   "$schema": "https://app.kilo.ai/config.json",
   "autoupdate": false,
-  "model": "9router/gpt-5.6-sol",
-  "small_model": "9router/gpt-5.6-sol",
-  "enabled_providers": ["9router"],
   "share": "disabled",
   "compaction": {
     "auto": true,
@@ -22,21 +19,6 @@
       },
       "enabled": true,
       "timeout": 60000
-    }
-  },
-  "provider": {
-    "9router": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "9Router",
-      "options": {
-        "baseURL": "https://9router.akasia.dev/v1",
-        "apiKey": "{env:KILO_API_KEY}"
-      },
-      "models": {
-        "gpt-5.6-sol": {
-          "name": "GPT-5.6 SOL"
-        }
-      }
     }
   }
 }

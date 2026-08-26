@@ -2,7 +2,6 @@
 .codebase-memory
 .git
 .gitignore
-.kilo/*
-!.kilo/kilo.jsonc
+.kilo
 .vscode
 README.md
