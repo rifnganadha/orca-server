@@ -1,7 +1,10 @@
 services:
   orca:
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
     build:
       context: .
+      platforms:
+        - ${DOCKER_PLATFORM:-linux/amd64}
       args:
         ORCA_VERSION: ${ORCA_VERSION:-v1.4.188}
         CODEBASE_MEMORY_VERSION: ${CODEBASE_MEMORY_VERSION:-v0.10.8}

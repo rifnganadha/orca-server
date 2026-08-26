@@ -68,6 +68,48 @@ docker compose logs -f orca
 docker compose ps
 ```
 
+### Choose AMD64 or ARM64
+
+Compose uses `DOCKER_PLATFORM` for both the build target and the running service. Set one of these values in `.env`:
+
+```dotenv
+# Intel/AMD hosts and most VPS instances
+DOCKER_PLATFORM=linux/amd64
+
+# ARM64 hosts, Apple Silicon, and ARM VPS instances
+DOCKER_PLATFORM=linux/arm64
+```
+
+Build and start the selected platform:
+
+```bash
+docker compose build --pull
+docker compose up -d --force-recreate orca
+```
+
+Or select a platform for one command without editing `.env`:
+
+```bash
+DOCKER_PLATFORM=linux/amd64 docker compose up -d --build --force-recreate orca
+DOCKER_PLATFORM=linux/arm64 docker compose up -d --build --force-recreate orca
+```
+
+On Docker Desktop or an `amd64` Linux host, enable ARM64 emulation before building the ARM image:
+
+```bash
+docker run --privileged --rm tonistiigi/binfmt --install arm64
+docker buildx inspect --bootstrap
+```
+
+Verify the running image architecture:
+
+```bash
+docker compose exec orca uname -m
+docker image inspect orca-server:${ORCA_VERSION:-v1.4.188} --format '{{.Architecture}}'
+```
+
+The Compose project uses the selected platform for the runtime image. The official Orca release and Codebase Memory assets are downloaded for the matching architecture during the build.
+
 ## Endpoints
 
 | URL | Purpose | Authentication |
