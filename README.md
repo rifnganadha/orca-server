@@ -284,6 +284,12 @@ services:
     restart: unless-stopped
     ports:
       - "3001:80"
+    networks:
+      - orca-network
+
+networks:
+  orca-network:
+    external: true
 ```
 
 Open the published application from Windows or Orca Web:
@@ -292,10 +298,10 @@ Open the published application from Windows or Orca Web:
 http://localhost:3001
 ```
 
-Processes running inside `orca-server` have a separate loopback interface. From an Orca terminal or agent tool, use Docker Desktop's host gateway:
+The server Compose project creates `orca-network`. Containers attached to it can communicate by container name. From an Orca terminal or agent tool, use:
 
 ```text
-http://host.docker.internal:3001
+http://welcome:80
 ```
 
 A mapping such as `3001:3001` only works when the child application listens on port `3001`. If it listens on `80`, use `3001:80`.

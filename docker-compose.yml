@@ -38,6 +38,8 @@ services:
     volumes:
       - orca-home:/home/orca
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - orca-network
     tmpfs:
       - /home/orca/.cache:uid=1000,gid=1000,mode=0700
     healthcheck:
@@ -49,3 +51,7 @@ services:
 
 volumes:
   orca-home:
+
+networks:
+  orca-network:
+    name: orca-network
