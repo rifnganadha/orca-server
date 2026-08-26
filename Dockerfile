@@ -13,7 +13,7 @@ ARG TARGETARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl file \
+    && apt-get install -y --no-install-recommends ca-certificates curl file grep squashfs-tools zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/orca
@@ -30,7 +30,18 @@ RUN case "${TARGETARCH}" in \
     && file_info="$(LC_ALL=C file orca-linux.AppImage)" \
     && echo "${file_info}" | grep -q 'ELF .* executable' \
     && echo "${file_info}" | grep -Fq "${machine}" \
-    && ./orca-linux.AppImage --appimage-extract \
+    && grep -abo 'hsqs' orca-linux.AppImage | cut -d: -f1 > squashfs-offsets \
+    && rm -rf squashfs-root \
+    && found_squashfs=false \
+    && while read -r squashfs_offset; do \
+        rm -rf squashfs-root; \
+        if unsquashfs -no-progress -offset "${squashfs_offset}" -d squashfs-root orca-linux.AppImage >/dev/null 2>&1; then \
+            found_squashfs=true; \
+            break; \
+        fi; \
+    done < squashfs-offsets \
+    && test "${found_squashfs}" = true \
+    && rm squashfs-offsets \
     && rm orca-linux.AppImage \
     && chmod -R a+rX squashfs-root
 
