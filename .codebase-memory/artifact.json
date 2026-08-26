@@ -1,0 +1,11 @@
+{
+    "schema_version": 2,
+    "commit": "60df631606231500dac019fa13a36b3f7dce40e6",
+    "indexed_at": "2026-08-26T13:57:40Z",
+    "project": "orca-server",
+    "nodes": 92,
+    "edges": 103,
+    "original_size": 1769472,
+    "compressed_size": 44141,
+    "compression_level": 3
+}
