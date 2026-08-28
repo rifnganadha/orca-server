@@ -108,8 +108,12 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 COPY docker/nginx /usr/local/share/orca-server/nginx
 COPY docker/web /usr/local/share/orca-server/web
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY --chmod=755 docker/kilo/kilo-wrapper.sh /usr/local/bin/kilo-wrapper.sh
 COPY docker/kilo/kilo.jsonc /usr/local/share/orca-server/kilo/kilo.jsonc
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
+    && sed -i 's/\r$//' /usr/local/bin/kilo-wrapper.sh \
+    && mv /usr/local/bin/kilo /usr/local/bin/kilo-real \
+    && ln -s /usr/local/bin/kilo-wrapper.sh /usr/local/bin/kilo \
     && chmod 755 /usr/local/bin/docker /usr/local/libexec/docker/cli-plugins/* \
     && chmod 644 /usr/local/share/orca-server/kilo/kilo.jsonc \
     && docker --version \
