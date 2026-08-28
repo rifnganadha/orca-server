@@ -10,6 +10,7 @@ services:
         DOCKER_CLI_VERSION: ${DOCKER_CLI_VERSION:-29.1.3}
         NODE_VERSION: ${NODE_VERSION:?Set NODE_VERSION in .env}
         SKILLS_CLI_VERSION: ${SKILLS_CLI_VERSION:?Set SKILLS_CLI_VERSION in .env}
+        KILO_CLI_VERSION: ${KILO_CLI_VERSION:-7.5.6}
     image: orca-server:${ORCA_VERSION:-v1.4.190}
     container_name: orca-server
     hostname: ${ORCA_HOSTNAME:-orca-server}
@@ -33,6 +34,14 @@ services:
       KILO_BASE_URL: ${KILO_BASE_URL:-https://9router.akasia.dev/v1}
       KILO_MODEL_ID: ${KILO_MODEL_ID:-gpt-5.6-sol}
       KILO_MODEL_NAME: ${KILO_MODEL_NAME:-GPT-5.6 SOL}
+      KILO_INDEXING_OLLAMA_URL: ${KILO_INDEXING_OLLAMA_URL:-http://ollama:11434}
+      KILO_INDEXING_MODEL: ${KILO_INDEXING_MODEL:-qwen3-embedding:0.6b}
+      KILO_INDEXING_QDRANT_URL: ${KILO_INDEXING_QDRANT_URL:-http://qdrant:6333}
+    depends_on:
+      ollama-model:
+        condition: service_completed_successfully
+      qdrant:
+        condition: service_healthy
     ports:
       - "${ORCA_PORT:-6770}:6768"
     volumes:
@@ -49,8 +58,55 @@ services:
       retries: 5
       start_period: 60s
 
+  ollama:
+    image: ollama/ollama:${OLLAMA_VERSION:-0.33.1}
+    container_name: orca-ollama
+    restart: unless-stopped
+    environment:
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-4}
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - orca-network
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  ollama-model:
+    image: ollama/ollama:${OLLAMA_VERSION:-0.33.1}
+    container_name: orca-ollama-model
+    restart: "no"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    command: ["pull", "${KILO_INDEXING_MODEL:-qwen3-embedding:0.6b}"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - orca-network
+
+  qdrant:
+    image: qdrant/qdrant:${QDRANT_VERSION:-v1.19.0}
+    container_name: orca-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - orca-network
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
 volumes:
   orca-home:
+  ollama-data:
+  qdrant-data:
 
 networks:
   orca-network:

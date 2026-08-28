@@ -22,13 +22,16 @@ kilo_provider_npm="${KILO_PROVIDER_NPM:-@ai-sdk/openai-compatible}"
 kilo_base_url="${KILO_BASE_URL:-https://9router.akasia.dev/v1}"
 kilo_model_id="${KILO_MODEL_ID:-gpt-5.6-sol}"
 kilo_model_name="${KILO_MODEL_NAME:-GPT-5.6 SOL}"
+kilo_indexing_ollama_url="${KILO_INDEXING_OLLAMA_URL:-http://ollama:11434}"
+kilo_indexing_model="${KILO_INDEXING_MODEL:-qwen3-embedding:0.6b}"
+kilo_indexing_qdrant_url="${KILO_INDEXING_QDRANT_URL:-http://qdrant:6333}"
 
 if [[ ! "${kilo_provider_id}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
     echo "KILO_PROVIDER_ID must contain only lowercase letters, digits, periods, underscores, or hyphens." >&2
     exit 2
 fi
-if [[ -z "${kilo_provider_name}" || -z "${kilo_provider_npm}" || -z "${kilo_base_url}" || -z "${kilo_model_id}" || -z "${kilo_model_name}" ]]; then
-    echo "Kilo provider and model settings must not be empty." >&2
+if [[ -z "${kilo_provider_name}" || -z "${kilo_provider_npm}" || -z "${kilo_base_url}" || -z "${kilo_model_id}" || -z "${kilo_model_name}" || -z "${kilo_indexing_ollama_url}" || -z "${kilo_indexing_model}" || -z "${kilo_indexing_qdrant_url}" ]]; then
+    echo "Kilo provider, model, and indexing settings must not be empty." >&2
     exit 2
 fi
 
@@ -44,6 +47,9 @@ jq \
     --arg base_url "${kilo_base_url}" \
     --arg model_id "${kilo_model_id}" \
     --arg model_name "${kilo_model_name}" \
+    --arg indexing_ollama_url "${kilo_indexing_ollama_url}" \
+    --arg indexing_model "${kilo_indexing_model}" \
+    --arg indexing_qdrant_url "${kilo_indexing_qdrant_url}" \
     '.model = ($provider_id + "/" + $model_id)
     | .small_model = .model
     | .enabled_providers = [$provider_id]
@@ -59,6 +65,15 @@ jq \
             ($model_id): {name: $model_name}
           }
         }
+      }
+    | .indexing = {
+        enabled: true,
+        provider: "ollama",
+        model: $indexing_model,
+        dimension: 1024,
+        vectorStore: "qdrant",
+        ollama: {baseUrl: $indexing_ollama_url},
+        qdrant: {url: $indexing_qdrant_url}
       }' \
     /usr/local/share/orca-server/kilo/kilo.jsonc >"${kilo_config}"
 chmod 600 "${kilo_config}"

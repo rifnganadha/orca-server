@@ -3,6 +3,7 @@
 ARG DOCKER_CLI_VERSION=29.1.3
 ARG NODE_VERSION=22.20.0
 ARG SKILLS_CLI_VERSION=1.5.23
+ARG KILO_CLI_VERSION=7.5.6
 
 FROM docker:${DOCKER_CLI_VERSION}-cli AS docker-cli
 
@@ -89,10 +90,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --shell /bin/bash orca
 
-RUN curl -fsSL https://kilo.ai/cli/install | bash \
+ARG KILO_CLI_VERSION
+RUN curl -fsSL https://kilo.ai/cli/install | bash -s -- --version "${KILO_CLI_VERSION}" --no-modify-path \
     && mv /root/.kilo/bin/kilo /usr/local/bin/kilo \
+    && mv /root/.kilo/bin/tree-sitter /usr/local/bin/tree-sitter \
     && rm -rf /root/.kilo \
-    && kilo --version
+    && test -f /usr/local/bin/tree-sitter/tree-sitter.wasm \
+    && test "$(kilo --version)" = "${KILO_CLI_VERSION}"
 
 COPY --from=extractor /opt/orca/squashfs-root /opt/orca/squashfs-root
 COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker

@@ -186,11 +186,24 @@ KILO_API_KEY=replace-with-provider-api-key
 
 `KILO_PROVIDER_ID` accepts lowercase letters, digits, periods, underscores, and hyphens. The generated config keeps the API key as `{env:KILO_API_KEY}` instead of writing the secret into the file.
 
+Codebase indexing is enabled by default using the Compose-managed Ollama and Qdrant services. The `ollama-model` initialization service downloads `qwen3-embedding:0.6b` into the persistent `ollama-data` volume before Orca starts, while vectors are stored in the persistent `qdrant-data` volume.
+
+| Variable                     | Default                        | Description                              |
+| ---------------------------- | ------------------------------ | ---------------------------------------- |
+| `OLLAMA_VERSION`             | `0.33.1`                       | Ollama container image version           |
+| `OLLAMA_NUM_PARALLEL`        | `4`                            | Concurrent Ollama requests per model     |
+| `QDRANT_VERSION`             | `v1.19.0`                      | Qdrant container image version           |
+| `KILO_INDEXING_OLLAMA_URL`   | `http://ollama:11434`          | Ollama URL reachable from Orca           |
+| `KILO_INDEXING_MODEL`        | `qwen3-embedding:0.6b`         | Ollama embedding model pulled at startup |
+| `KILO_INDEXING_QDRANT_URL`   | `http://qdrant:6333`           | Qdrant URL reachable from Orca           |
+
 Apply and inspect provider changes:
 
 ```bash
 docker compose up -d --force-recreate orca
 docker compose exec orca kilo debug config
+docker compose exec ollama ollama list
+docker compose exec qdrant bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'
 ```
 
 ### Build Tools And Docker Engine
@@ -200,10 +213,11 @@ docker compose exec orca kilo debug config
 | -------------------- | --------- | --------------------------------------------------- |
 | `NODE_VERSION`       | `22.20.0` | Node.js runtime used by npm-based skill installers  |
 | `SKILLS_CLI_VERSION` | `1.5.23`  | CLI used to preinstall Orca agent skills            |
+| `KILO_CLI_VERSION`   | `7.5.6`   | Kilo CLI and bundled Tree-sitter runtime assets     |
 | `DOCKER_CLI_VERSION` | `29.1.3`  | Docker CLI image used during the build              |
 | `DOCKER_GID`         | `0`       | Supplementary group allowed to access `docker.sock` |
 
-`NODE_VERSION` and `SKILLS_CLI_VERSION` are required build arguments sourced from `.env`. Changing either value requires rebuilding the image.
+`NODE_VERSION` and `SKILLS_CLI_VERSION` are required build arguments sourced from `.env`. Changing these or `KILO_CLI_VERSION` requires rebuilding the image.
 
 
 The container mounts `/var/run/docker.sock` and uses Docker-outside-of-Docker. Commands inside Orca control the host engine:
