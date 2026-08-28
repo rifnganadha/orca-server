@@ -96,14 +96,12 @@ mobile_pairing_qr="${runtime_dir}/mobile.svg"
 desktop_pairing_page="${runtime_dir}/desktop.html"
 desktop_pairing_qr="${runtime_dir}/desktop.svg"
 orca_pid=""
-codebase_memory_pid=""
 template_dir="/usr/local/share/orca-server"
 nginx_template="${template_dir}/nginx/nginx.conf"
 web_template_dir="${template_dir}/web"
 
 cleanup() {
     [[ -z "${orca_pid}" ]] || kill "${orca_pid}" 2>/dev/null || true
-    [[ -z "${codebase_memory_pid}" ]] || kill "${codebase_memory_pid}" 2>/dev/null || true
     rm -rf "${runtime_dir}"
 }
 trap cleanup EXIT INT TERM
@@ -217,22 +215,5 @@ render_template "${nginx_template}" "${nginx_config}" \
     MOBILE_QR "${mobile_pairing_qr}" \
     DESKTOP_PAGE "${desktop_pairing_page}" \
     DESKTOP_QR "${desktop_pairing_qr}"
-
-mkdir -p /home/orca/.local/share/codebase-memory-mcp
-tail -f /dev/null | CBM_CACHE_DIR=/home/orca/.local/share/codebase-memory-mcp \
-    codebase-memory-mcp --ui=true --port=9749 >/dev/null &
-codebase_memory_pid=$!
-
-for _ in $(seq 1 60); do
-    if bash -c 'exec 3<>/dev/tcp/127.0.0.1/9749' 2>/dev/null; then
-        break
-    fi
-    kill -0 "${codebase_memory_pid}" 2>/dev/null || wait "${codebase_memory_pid}"
-    sleep 0.5
-done
-bash -c 'exec 3<>/dev/tcp/127.0.0.1/9749' 2>/dev/null || {
-    echo "Codebase Memory UI did not start within 30 seconds." >&2
-    exit 1
-}
 
 exec nginx -c "${nginx_config}" -g 'daemon off;'

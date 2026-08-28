@@ -12,7 +12,6 @@ This image extracts a pinned Orca AppImage without FUSE, runs `orca serve` as an
 - Authenticated Orca Web, Desktop pairing, and Mobile pairing pages
 - Persistent projects, worktrees, credentials, configuration, and terminal history
 - Kilo Code CLI with a dynamic OpenAI-compatible provider
-- Codebase Memory MCP with an authenticated graph UI
 - GitHub CLI and non-interactive token support
 - Docker CLI, Compose, and Buildx through the host Docker socket
 - Deliberate, pinned upgrades with checksum verification for Codebase Memory
@@ -40,7 +39,6 @@ ORCA_WEB_USER=orca
 ORCA_WEB_PASSWORD=replace-with-a-long-random-password
 GIT_USER_NAME=Your Name
 GIT_USER_EMAIL=you@example.com
-KILO_API_KEY=replace-with-provider-api-key
 ```
 
 `ORCA_PAIRING_ADDRESS` must be reachable by the clients you intend to pair. Use a LAN IP, Tailscale address, hostname, or HTTPS reverse-proxy URL.
@@ -108,18 +106,19 @@ docker compose exec orca uname -m
 docker image inspect orca-server:${ORCA_VERSION:-v1.4.188} --format '{{.Architecture}}'
 ```
 
-The Compose project uses the selected platform for the runtime image. The official Orca release and Codebase Memory assets are downloaded for the matching architecture during the build.
+The Compose project uses the selected platform for the runtime image. The official Orca release is downloaded for the matching architecture during the build.
 
 ## Endpoints
 
-| URL | Purpose | Authentication |
-|---|---|---|
-| `http://localhost:6770` | Orca Web | `ORCA_WEB_USER` / `ORCA_WEB_PASSWORD` |
-| `http://localhost:6770/desktop` | Desktop pairing QR | Orca Web credentials |
-| `http://localhost:6770/mobile` | Mobile pairing QR | Orca Web credentials |
-| `http://localhost:9749` | Codebase Memory graph UI | Orca Web credentials |
 
-The default host ports are controlled by `ORCA_PORT` and `CODEBASE_MEMORY_PORT`.
+| URL                             | Purpose            | Authentication                        |
+| ------------------------------- | ------------------ | ------------------------------------- |
+| `http://localhost:6770`         | Orca Web           | `ORCA_WEB_USER` / `ORCA_WEB_PASSWORD` |
+| `http://localhost:6770/desktop` | Desktop pairing QR | Orca Web credentials                  |
+| `http://localhost:6770/mobile`  | Mobile pairing QR  | Orca Web credentials                  |
+
+
+The default host port is controlled by `ORCA_PORT`.
 
 Pairing URLs and QR codes are credentials. Do not put them in source control, screenshots, issue trackers, or synchronized browser history.
 
@@ -129,17 +128,19 @@ All operator configuration lives in `.env`. Compose refuses to start when requir
 
 ### Orca
 
-| Variable | Default | Description |
-|---|---|---|
-| `ORCA_VERSION` | `v1.4.188` | Pinned Orca release downloaded during the build |
-| `ORCA_PAIRING_ADDRESS` | required | Address advertised to Desktop and Mobile clients |
-| `ORCA_PORT` | `6770` | Host port for Orca Web and pairing traffic |
-| `ORCA_HOSTNAME` | `orca-server` | Hostname shown in terminals and tab titles |
-| `ORCA_WEB_USER` | required | Browser and graph UI username |
-| `ORCA_WEB_PASSWORD` | required | Browser and graph UI password |
-| `GIT_USER_NAME` | required | Global Git commit author name |
-| `GIT_USER_EMAIL` | required | Global Git commit author email |
-| `GH_TOKEN` | empty | Optional fine-grained GitHub token |
+
+| Variable               | Default       | Description                                      |
+| ---------------------- | ------------- | ------------------------------------------------ |
+| `ORCA_VERSION`         | `v1.4.188`    | Pinned Orca release downloaded during the build  |
+| `ORCA_PAIRING_ADDRESS` | required      | Address advertised to Desktop and Mobile clients |
+| `ORCA_PORT`            | `6770`        | Host port for Orca Web and pairing traffic       |
+| `ORCA_HOSTNAME`        | `orca-server` | Hostname shown in terminals and tab titles       |
+| `ORCA_WEB_USER`        | required      | Browser username                                 |
+| `ORCA_WEB_PASSWORD`    | required      | Browser password                                 |
+| `GIT_USER_NAME`        | required      | Global Git commit author name                    |
+| `GIT_USER_EMAIL`       | required      | Global Git commit author email                   |
+| `GH_TOKEN`             | empty         | Optional fine-grained GitHub token               |
+
 
 Pairing address examples:
 
@@ -160,15 +161,17 @@ A bare address receives `ORCA_PORT` automatically. Include an explicit port in `
 
 The entrypoint renders Kilo's provider configuration from `.env` every time the container starts. Provider changes require container recreation, not an image rebuild.
 
-| Variable | Default | Description |
-|---|---|---|
-| `KILO_PROVIDER_ID` | `9router` | Lowercase provider key used in `provider/model` |
-| `KILO_PROVIDER_NAME` | `9Router` | Provider display name |
-| `KILO_PROVIDER_NPM` | `@ai-sdk/openai-compatible` | AI SDK provider package |
-| `KILO_BASE_URL` | `https://9router.akasia.dev/v1` | OpenAI-compatible API base URL |
-| `KILO_MODEL_ID` | `gpt-5.6-sol` | Model identifier sent to the provider |
-| `KILO_MODEL_NAME` | `GPT-5.6 SOL` | Model display name |
-| `KILO_API_KEY` | empty | Provider API key |
+
+| Variable             | Default                          | Description                                     |
+| -------------------- | -------------------------------- | ----------------------------------------------- |
+| `KILO_PROVIDER_ID`   | `9router`                        | Lowercase provider key used in `provider/model` |
+| `KILO_PROVIDER_NAME` | `9Router`                        | Provider display name                           |
+| `KILO_PROVIDER_NPM`  | `@ai-sdk/openai-compatible`      | AI SDK provider package                         |
+| `KILO_BASE_URL`      | `https://9router.example.com/v1` | OpenAI-compatible API base URL                  |
+| `KILO_MODEL_ID`      | `gpt-5.6-sol`                    | Model identifier sent to the provider           |
+| `KILO_MODEL_NAME`    | `GPT-5.6 SOL`                    | Model display name                              |
+| `KILO_API_KEY`       | empty                            | Provider API key                                |
+
 
 Example:
 
@@ -176,7 +179,7 @@ Example:
 KILO_PROVIDER_ID=9router
 KILO_PROVIDER_NAME=9Router
 KILO_PROVIDER_NPM=@ai-sdk/openai-compatible
-KILO_BASE_URL=https://9router.akasia.dev/v1
+KILO_BASE_URL=https://9router.example.com/v1
 KILO_MODEL_ID=gpt-5.6-sol
 KILO_MODEL_NAME=GPT-5.6 SOL
 KILO_API_KEY=replace-with-provider-api-key
@@ -191,28 +194,14 @@ docker compose up -d --force-recreate orca
 docker compose exec orca kilo debug config
 ```
 
-### Codebase Memory
-
-| Variable | Default | Description |
-|---|---|---|
-| `CODEBASE_MEMORY_VERSION` | `v0.10.8` | Pinned Codebase Memory release |
-| `CODEBASE_MEMORY_PORT` | `9749` | Authenticated graph UI host port |
-
-The build downloads the architecture-specific portable binary and validates its published SHA-256 checksum. Graph data persists at `/home/orca/.local/share/codebase-memory-mcp` in the `orca-home` volume.
-
-Verify the integration:
-
-```bash
-docker compose exec orca codebase-memory-mcp --version
-docker compose exec orca kilo mcp list
-```
-
 ### Docker Engine
 
-| Variable | Default | Description |
-|---|---|---|
-| `DOCKER_CLI_VERSION` | `29.1.3` | Docker CLI image used during the build |
-| `DOCKER_GID` | `0` | Supplementary group allowed to access `docker.sock` |
+
+| Variable             | Default  | Description                                         |
+| -------------------- | -------- | --------------------------------------------------- |
+| `DOCKER_CLI_VERSION` | `29.1.3` | Docker CLI image used during the build              |
+| `DOCKER_GID`         | `0`      | Supplementary group allowed to access `docker.sock` |
+
 
 The container mounts `/var/run/docker.sock` and uses Docker-outside-of-Docker. Commands inside Orca control the host engine:
 
@@ -259,7 +248,7 @@ orca account add --agent codex
 orca account list
 ```
 
-In Orca, configure integration credentials as server-owned under **Settings > Remote Orca Servers > Advanced**.
+In Orca, configure integration credentials as server-owned under **Settings &gt; Remote Orca Servers &gt; Advanced**.
 
 ## Run Project Containers
 
@@ -403,7 +392,7 @@ The `orca-home` volume stores:
 
 ## Security
 
-- Never expose Orca or the graph UI directly to the public Internet.
+- Never expose Orca directly to the public Internet.
 - Prefer Tailscale, WireGuard, SSH forwarding, or an authenticated TLS reverse proxy.
 - Treat pairing grants and QR codes as passwords.
 - Use a long, unique `ORCA_WEB_PASSWORD` and HTTPS on untrusted networks.
@@ -418,14 +407,13 @@ The `orca-home` volume stores:
 
 ```text
 .
-|-- .codebase-memory/       # Optional shared graph snapshot
 |-- docker/
 |   |-- entrypoint.sh       # Startup, configuration, pairing, and UI lifecycle
 |   |-- kilo/kilo.jsonc     # Provider-neutral Kilo template
-|   |-- nginx/nginx.conf    # Authenticated Orca and graph UI proxy
+|   |-- nginx/nginx.conf    # Authenticated Orca proxy
 |   `-- web/                # Login, landing, pairing, and compatibility assets
 |-- .env.example            # Operator configuration template
-|-- Dockerfile              # Multi-stage Orca, Docker CLI, Kilo, and MCP image
+|-- Dockerfile              # Multi-stage Orca, Docker CLI, and Kilo image
 |-- docker-compose.yml      # Runtime service, ports, volume, and socket mount
 `-- README.md
 ```
@@ -436,4 +424,3 @@ Local `.kilo/` state is excluded from Git and Docker. Runtime credentials, rende
 
 - [Remote Orca Servers](https://www.onorca.dev/docs/remote-servers)
 - [Headless Linux Server](https://github.com/stablyai/orca/blob/main/docs/reference/headless-linux-server.md)
-- [Codebase Memory MCP](https://github.com/DeusData/codebase-memory-mcp)

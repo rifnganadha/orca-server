@@ -5,20 +5,5 @@
   "compaction": {
     "auto": true,
     "prune": true
-  },
-  "mcp": {
-    "codebase-memory-mcp": {
-      "type": "local",
-      "command": [
-        "/usr/local/bin/codebase-memory-mcp",
-        "--ui=true",
-        "--port=9749"
-      ],
-      "environment": {
-        "CBM_CACHE_DIR": "/home/orca/.local/share/codebase-memory-mcp"
-      },
-      "enabled": true,
-      "timeout": 60000
-    }
   }
 }
