@@ -14,7 +14,6 @@ This image extracts a pinned Orca AppImage without FUSE, runs `orca serve` as an
 - Kilo Code CLI with a dynamic OpenAI-compatible provider
 - GitHub CLI and non-interactive token support
 - Docker CLI, Compose, and Buildx through the host Docker socket
-- Deliberate, pinned upgrades with checksum verification for Codebase Memory
 - Unprivileged runtime without FUSE or `--privileged`
 
 ## Requirements
@@ -390,7 +389,6 @@ The `orca-home` volume stores:
 - Orca state and paired-device keys
 - Kilo, GitHub CLI, and agent credentials
 - Terminal history and user configuration
-- Codebase Memory indexes
 
 `/home/orca/.cache` is a disposable tmpfs mount and is cleared when the container is recreated.
 
