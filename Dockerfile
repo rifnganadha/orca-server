@@ -132,10 +132,29 @@ RUN --mount=type=cache,target=/home/orca/.npm,uid=1000,gid=1000 \
         --skill computer-use \
         --skill orchestration \
         --global \
+        --agent universal \
+        --yes \
+    && npx --yes "skills@${SKILLS_CLI_VERSION}" add https://github.com/stablyai/orca \
+        --skill orca-cli \
+        --skill computer-use \
+        --skill orchestration \
+        --global \
+        --agent kilo \
         --yes \
     && test -f /home/orca/.agents/skills/orca-cli/SKILL.md \
     && test -f /home/orca/.agents/skills/computer-use/SKILL.md \
-    && test -f /home/orca/.agents/skills/orchestration/SKILL.md
+    && test -f /home/orca/.agents/skills/orchestration/SKILL.md \
+    && test -f /home/orca/.kilocode/skills/orca-cli/SKILL.md \
+    && test -f /home/orca/.kilocode/skills/computer-use/SKILL.md \
+    && test -f /home/orca/.kilocode/skills/orchestration/SKILL.md
+
+USER root
+RUN mkdir -p /usr/local/share/orca-server/skills/.agents /usr/local/share/orca-server/skills/.kilocode \
+    && cp -R /home/orca/.agents/skills /usr/local/share/orca-server/skills/.agents/skills \
+    && cp -R /home/orca/.kilocode/skills /usr/local/share/orca-server/skills/.kilocode/skills \
+    && chmod -R a+rX /usr/local/share/orca-server/skills
+
+USER orca
 
 EXPOSE 6768
 

@@ -38,6 +38,18 @@ fi
 git config --global user.name "${GIT_USER_NAME}"
 git config --global user.email "${GIT_USER_EMAIL}"
 
+for skill_scope in .agents .kilocode; do
+    bundled_skills="/usr/local/share/orca-server/skills/${skill_scope}/skills"
+    installed_skills="/home/orca/${skill_scope}/skills"
+    mkdir -p "${installed_skills}"
+    for bundled_skill in "${bundled_skills}"/*; do
+        skill_name="$(basename "${bundled_skill}")"
+        if [[ ! -e "${installed_skills}/${skill_name}" ]]; then
+            cp -R "${bundled_skill}" "${installed_skills}/${skill_name}"
+        fi
+    done
+done
+
 mkdir -p /home/orca/.config/kilo
 kilo_config="/home/orca/.config/kilo/kilo.jsonc"
 jq \

@@ -2,12 +2,14 @@
   "$schema": "https://app.kilo.ai/config.json",
   "autoupdate": false,
   "share": "disabled",
+  "lsp": true,
   "compaction": {
     "auto": true,
     "prune": true
   },
   "permission": {
     "kilo_memory_recall": "allow",
-    "kilo_memory_save": "allow"
+    "kilo_memory_save": "allow",
+    "lsp": "allow"
   }
 }
