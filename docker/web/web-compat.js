@@ -101,18 +101,24 @@
     };
 
     const patchApi = (value) => {
-        if (!value?.cli) {
+        if (!value) {
             return value;
         }
 
-        Object.assign(value.cli, {
-            getInstallStatus: () => Promise.resolve(cliStatus),
-            install: () => Promise.resolve(cliStatus),
-            remove: () => Promise.resolve(cliStatus),
-            getWslInstallStatus: () => Promise.resolve(wslStatus),
-            installWsl: () => Promise.resolve(wslStatus),
-            removeWsl: () => Promise.resolve(wslStatus),
-        });
+        if (value.cli) {
+            Object.assign(value.cli, {
+                getInstallStatus: () => Promise.resolve(cliStatus),
+                install: () => Promise.resolve(cliStatus),
+                remove: () => Promise.resolve(cliStatus),
+                getWslInstallStatus: () => Promise.resolve(wslStatus),
+                installWsl: () => Promise.resolve(wslStatus),
+                removeWsl: () => Promise.resolve(wslStatus),
+            });
+        }
+        if (value.app) {
+            value.app.getFloatingTerminalCwd = () =>
+                Promise.resolve("/home/orca");
+        }
         return value;
     };
 

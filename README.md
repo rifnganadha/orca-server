@@ -194,13 +194,17 @@ docker compose up -d --force-recreate orca
 docker compose exec orca kilo debug config
 ```
 
-### Docker Engine
+### Build Tools And Docker Engine
 
 
-| Variable             | Default  | Description                                         |
-| -------------------- | -------- | --------------------------------------------------- |
-| `DOCKER_CLI_VERSION` | `29.1.3` | Docker CLI image used during the build              |
-| `DOCKER_GID`         | `0`      | Supplementary group allowed to access `docker.sock` |
+| Variable             | Default   | Description                                         |
+| -------------------- | --------- | --------------------------------------------------- |
+| `NODE_VERSION`       | `22.20.0` | Node.js runtime used by npm-based skill installers  |
+| `SKILLS_CLI_VERSION` | `1.5.23`  | CLI used to preinstall Orca agent skills            |
+| `DOCKER_CLI_VERSION` | `29.1.3`  | Docker CLI image used during the build              |
+| `DOCKER_GID`         | `0`       | Supplementary group allowed to access `docker.sock` |
+
+`NODE_VERSION` and `SKILLS_CLI_VERSION` are required build arguments sourced from `.env`. Changing either value requires rebuilding the image.
 
 
 The container mounts `/var/run/docker.sock` and uses Docker-outside-of-Docker. Commands inside Orca control the host engine:

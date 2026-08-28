@@ -1,8 +1,12 @@
 # syntax=docker/dockerfile:1
 
 ARG DOCKER_CLI_VERSION=29.1.3
+ARG NODE_VERSION=22.20.0
+ARG SKILLS_CLI_VERSION=1.5.23
 
 FROM docker:${DOCKER_CLI_VERSION}-cli AS docker-cli
+
+FROM node:${NODE_VERSION}-bookworm-slim AS node-runtime
 
 FROM debian:bookworm-slim AS extractor
 
@@ -77,8 +81,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         libxdamage1 \
         libxkbcommon0 \
         nginx-light \
-        nodejs \
-        npm \
         openssh-client \
         openssl \
         qrencode \
@@ -95,6 +97,10 @@ RUN curl -fsSL https://kilo.ai/cli/install | bash \
 COPY --from=extractor /opt/orca/squashfs-root /opt/orca/squashfs-root
 COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=docker-cli /usr/local/libexec/docker/cli-plugins /usr/local/libexec/docker/cli-plugins
+COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-runtime /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 COPY docker/nginx /usr/local/share/orca-server/nginx
 COPY docker/web /usr/local/share/orca-server/web
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
@@ -110,6 +116,18 @@ RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
 
 USER orca
 WORKDIR /home/orca
+
+ARG SKILLS_CLI_VERSION
+RUN --mount=type=cache,target=/home/orca/.npm,uid=1000,gid=1000 \
+    npx --yes "skills@${SKILLS_CLI_VERSION}" add https://github.com/stablyai/orca \
+        --skill orca-cli \
+        --skill computer-use \
+        --skill orchestration \
+        --global \
+        --yes \
+    && test -f /home/orca/.agents/skills/orca-cli/SKILL.md \
+    && test -f /home/orca/.agents/skills/computer-use/SKILL.md \
+    && test -f /home/orca/.agents/skills/orchestration/SKILL.md
 
 EXPOSE 6768
 
