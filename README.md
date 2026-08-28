@@ -131,7 +131,7 @@ All operator configuration lives in `.env`. Compose refuses to start when requir
 
 | Variable               | Default       | Description                                      |
 | ---------------------- | ------------- | ------------------------------------------------ |
-| `ORCA_VERSION`         | `v1.4.188`    | Pinned Orca release downloaded during the build  |
+| `ORCA_VERSION`         | `v1.4.190`    | Pinned Orca release downloaded during the build  |
 | `ORCA_PAIRING_ADDRESS` | required      | Address advertised to Desktop and Mobile clients |
 | `ORCA_PORT`            | `6770`        | Host port for Orca Web and pairing traffic       |
 | `ORCA_HOSTNAME`        | `orca-server` | Hostname shown in terminals and tab titles       |
@@ -424,3 +424,4 @@ Local `.kilo/` state is excluded from Git and Docker. Runtime credentials, rende
 
 - [Remote Orca Servers](https://www.onorca.dev/docs/remote-servers)
 - [Headless Linux Server](https://github.com/stablyai/orca/blob/main/docs/reference/headless-linux-server.md)
+

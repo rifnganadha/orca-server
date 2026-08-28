@@ -6,9 +6,9 @@ services:
       platforms:
         - ${DOCKER_PLATFORM:-linux/amd64}
       args:
-        ORCA_VERSION: ${ORCA_VERSION:-v1.4.188}
+        ORCA_VERSION: ${ORCA_VERSION:-v1.4.190}
         DOCKER_CLI_VERSION: ${DOCKER_CLI_VERSION:-29.1.3}
-    image: orca-server:${ORCA_VERSION:-v1.4.188}
+    image: orca-server:${ORCA_VERSION:-v1.4.190}
     container_name: orca-server
     hostname: ${ORCA_HOSTNAME:-orca-server}
     init: true
