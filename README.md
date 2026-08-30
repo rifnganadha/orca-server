@@ -92,6 +92,13 @@ live workspace ports from a browser. The same server can pair with native Orca c
 
 </details>
 
+<details>
+<summary><strong>Mobile pairing screen</strong></summary>
+
+![Orca mobile pairing screen](docs/screenshots/orca-mobile-pairing.png)
+
+</details>
+
 ### Understand Every Repository
 
 RepoWise automatically discovers Git repositories under `/home/orca/orca/projects`, builds
