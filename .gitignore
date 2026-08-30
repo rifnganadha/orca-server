@@ -1,4 +1,21 @@
-.env
+# Local environment and secrets
+/.env
+/.env.*
+!/.env.example
 
-# Local Kilo dependencies and Agent Manager state
-.kilo/
+# Local agent, editor, and code-intelligence state
+/.claude/
+/.kilo/
+/.repowise/
+/.vscode/
+/.mcp.json
+
+# Python runtime and tool caches
+__pycache__/
+*.py[cod]
+/.pytest_cache/
+/.ruff_cache/
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
