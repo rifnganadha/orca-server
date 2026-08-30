@@ -22,21 +22,25 @@ kilo_provider_npm="${KILO_PROVIDER_NPM:-@ai-sdk/openai-compatible}"
 kilo_base_url="${KILO_BASE_URL:-https://9router.akasia.dev/v1}"
 kilo_model_id="${KILO_MODEL_ID:-gpt-5.6-sol}"
 kilo_model_name="${KILO_MODEL_NAME:-GPT-5.6 SOL}"
-kilo_indexing_ollama_url="${KILO_INDEXING_OLLAMA_URL:-http://ollama:11434}"
-kilo_indexing_model="${KILO_INDEXING_MODEL:-qwen3-embedding:0.6b}"
-kilo_indexing_qdrant_url="${KILO_INDEXING_QDRANT_URL:-http://qdrant:6333}"
+repowise_enabled="${REPOWISE_ENABLED:-true}"
 
 if [[ ! "${kilo_provider_id}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
     echo "KILO_PROVIDER_ID must contain only lowercase letters, digits, periods, underscores, or hyphens." >&2
     exit 2
 fi
-if [[ -z "${kilo_provider_name}" || -z "${kilo_provider_npm}" || -z "${kilo_base_url}" || -z "${kilo_model_id}" || -z "${kilo_model_name}" || -z "${kilo_indexing_ollama_url}" || -z "${kilo_indexing_model}" || -z "${kilo_indexing_qdrant_url}" ]]; then
-    echo "Kilo provider, model, and indexing settings must not be empty." >&2
+if [[ "${repowise_enabled}" != "true" && "${repowise_enabled}" != "false" ]]; then
+    echo "REPOWISE_ENABLED must be true or false." >&2
+    exit 2
+fi
+if [[ -z "${kilo_provider_name}" || -z "${kilo_provider_npm}" || -z "${kilo_base_url}" || -z "${kilo_model_id}" || -z "${kilo_model_name}" ]]; then
+    echo "Kilo provider and model settings must not be empty." >&2
     exit 2
 fi
 
 git config --global user.name "${GIT_USER_NAME}"
 git config --global user.email "${GIT_USER_EMAIL}"
+
+rm -rf "${XDG_DATA_HOME:-${HOME}/.local/share}/kilo/memory"
 
 for skill_scope in .agents .kilocode; do
     bundled_skills="/usr/local/share/orca-server/skills/${skill_scope}/skills"
@@ -59,9 +63,7 @@ jq \
     --arg base_url "${kilo_base_url}" \
     --arg model_id "${kilo_model_id}" \
     --arg model_name "${kilo_model_name}" \
-    --arg indexing_ollama_url "${kilo_indexing_ollama_url}" \
-    --arg indexing_model "${kilo_indexing_model}" \
-    --arg indexing_qdrant_url "${kilo_indexing_qdrant_url}" \
+    --argjson repowise_enabled "${repowise_enabled}" \
     '.model = ($provider_id + "/" + $model_id)
     | .small_model = .model
     | .enabled_providers = [$provider_id]
@@ -78,15 +80,15 @@ jq \
           }
         }
       }
-    | .indexing = {
-        enabled: true,
-        provider: "ollama",
-        model: $indexing_model,
-        dimension: 1024,
-        vectorStore: "qdrant",
-        ollama: {baseUrl: $indexing_ollama_url},
-        qdrant: {url: $indexing_qdrant_url}
-      }' \
+    | if $repowise_enabled then
+        .mcp.repowise = {
+          type: "local",
+          command: ["/usr/local/bin/repowise", "mcp"],
+          enabled: true
+        }
+      else
+        .mcp = ((.mcp // {}) | del(.repowise))
+      end' \
     /usr/local/share/orca-server/kilo/kilo.jsonc >"${kilo_config}"
 chmod 600 "${kilo_config}"
 
@@ -111,24 +113,30 @@ esac
 runtime_dir="$(mktemp -d)"
 mobile_ready_log="${runtime_dir}/mobile.log"
 web_ready_log="${runtime_dir}/web.log"
+repowise_log="${runtime_dir}/repowise.log"
 : >"${mobile_ready_log}"
 : >"${web_ready_log}"
+: >"${repowise_log}"
 nginx_config="${runtime_dir}/nginx.conf"
 web_auth_file="${runtime_dir}/htpasswd"
 web_session_token="$(openssl rand -hex 32)"
+repowise_session_token="$(openssl rand -hex 32)"
 login_page="${runtime_dir}/login.html"
+repowise_login_page="${runtime_dir}/repowise-login.html"
 web_landing_page="${runtime_dir}/index.html"
 pairing_page="${runtime_dir}/mobile.html"
 mobile_pairing_qr="${runtime_dir}/mobile.svg"
 desktop_pairing_page="${runtime_dir}/desktop.html"
 desktop_pairing_qr="${runtime_dir}/desktop.svg"
 orca_pid=""
+repowise_pid=""
 template_dir="/usr/local/share/orca-server"
 nginx_template="${template_dir}/nginx/nginx.conf"
 web_template_dir="${template_dir}/web"
 
 cleanup() {
     [[ -z "${orca_pid}" ]] || kill "${orca_pid}" 2>/dev/null || true
+    [[ -z "${repowise_pid}" ]] || kill "${repowise_pid}" 2>/dev/null || true
     rm -rf "${runtime_dir}"
 }
 trap cleanup EXIT INT TERM
@@ -190,7 +198,33 @@ render_template() {
 }
 
 printf '%s\n' "${ORCA_WEB_PASSWORD}" | htpasswd -n -i -m "${ORCA_WEB_USER}" >"${web_auth_file}"
-cp "${web_template_dir}/login.html" "${login_page}"
+render_template "${web_template_dir}/login.html" "${login_page}" PRODUCT Orca
+render_template "${web_template_dir}/login.html" "${repowise_login_page}" PRODUCT RepoWise
+
+if [[ "${repowise_enabled}" == "true" ]]; then
+    repowise-dashboard > >(tee "${repowise_log}") 2>&1 &
+    repowise_pid=$!
+
+    for _ in $(seq 1 240); do
+        if bash -c 'exec 3<>/dev/tcp/127.0.0.1/7337' 2>/dev/null \
+                && bash -c 'exec 3<>/dev/tcp/127.0.0.1/7340' 2>/dev/null; then
+            break
+        fi
+        if ! kill -0 "${repowise_pid}" 2>/dev/null; then
+            cat "${repowise_log}" >&2
+            echo "RepoWise dashboard exited during startup." >&2
+            exit 1
+        fi
+        sleep 0.5
+    done
+    if ! bash -c 'exec 3<>/dev/tcp/127.0.0.1/7337' 2>/dev/null \
+            || ! bash -c 'exec 3<>/dev/tcp/127.0.0.1/7340' 2>/dev/null; then
+        cat "${repowise_log}" >&2
+        echo "RepoWise dashboard did not become ready within 120 seconds." >&2
+        exit 1
+    fi
+    echo "RepoWise workspace dashboard ready."
+fi
 
 /opt/orca/squashfs-root/AppRun serve \
     --port 6769 \
@@ -233,10 +267,12 @@ render_template "${web_template_dir}/pairing.html" "${desktop_pairing_page}" \
 
 render_template "${nginx_template}" "${nginx_config}" \
     SESSION_TOKEN "${web_session_token}" \
+    REPOWISE_SESSION_TOKEN "${repowise_session_token}" \
     PAIRING_ENDPOINT "${pairing_endpoint}" \
     SERVER_ARCH "${server_arch}" \
     RUNTIME_DIR "${runtime_dir}" \
     LOGIN_PAGE "${login_page}" \
+    REPOWISE_LOGIN_PAGE "${repowise_login_page}" \
     AUTH_FILE "${web_auth_file}" \
     MOBILE_PAGE "${pairing_page}" \
     MOBILE_QR "${mobile_pairing_qr}" \

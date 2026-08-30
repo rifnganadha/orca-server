@@ -139,6 +139,7 @@ All operator configuration lives in `.env`. Compose refuses to start when requir
 | `GIT_USER_NAME`        | required      | Global Git commit author name                    |
 | `GIT_USER_EMAIL`       | required      | Global Git commit author email                   |
 | `GH_TOKEN`             | empty         | Optional fine-grained GitHub token               |
+| `TZ`                   | `Asia/Jakarta` | IANA timezone used inside the Orca container     |
 
 
 Pairing address examples:
@@ -155,6 +156,19 @@ ORCA_PAIRING_ADDRESS=https://orca.example.com
 ```
 
 A bare address receives `ORCA_PORT` automatically. Include an explicit port in `ORCA_PAIRING_ADDRESS` when external routing uses another port.
+
+Set `TZ` to an [IANA timezone name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) to control local timestamps inside the Orca container:
+
+```dotenv
+TZ=Asia/Jakarta
+```
+
+Apply a timezone change without rebuilding the image:
+
+```bash
+docker compose up -d --force-recreate orca
+docker compose exec orca date
+```
 
 ### Kilo Provider
 
@@ -186,24 +200,51 @@ KILO_API_KEY=replace-with-provider-api-key
 
 `KILO_PROVIDER_ID` accepts lowercase letters, digits, periods, underscores, and hyphens. The generated config keeps the API key as `{env:KILO_API_KEY}` instead of writing the secret into the file.
 
-Codebase indexing is enabled by default using the Compose-managed Ollama and Qdrant services. The `ollama-model` initialization service downloads `qwen3-embedding:0.6b` into the persistent `ollama-data` volume before Orca starts, while vectors are stored in the persistent `qdrant-data` volume.
+### RepoWise
 
-| Variable                     | Default                        | Description                              |
-| ---------------------------- | ------------------------------ | ---------------------------------------- |
-| `OLLAMA_VERSION`             | `0.33.1`                       | Ollama container image version           |
-| `OLLAMA_NUM_PARALLEL`        | `4`                            | Concurrent Ollama requests per model     |
-| `QDRANT_VERSION`             | `v1.19.0`                      | Qdrant container image version           |
-| `KILO_INDEXING_OLLAMA_URL`   | `http://ollama:11434`          | Ollama URL reachable from Orca           |
-| `KILO_INDEXING_MODEL`        | `qwen3-embedding:0.6b`         | Ollama embedding model pulled at startup |
-| `KILO_INDEXING_QDRANT_URL`   | `http://qdrant:6333`           | Qdrant URL reachable from Orca           |
+RepoWise is installed in an isolated Python environment and enabled as a local stdio MCP server for Kilo by default. It supplies dependency, history, risk, health, decision, and architecture context without running another container.
+
+| Variable           | Default  | Description                                |
+| ------------------ | -------- | ------------------------------------------ |
+| `REPOWISE_ENABLED` | `true`   | Exposes RepoWise MCP tools to Kilo         |
+| `REPOWISE_VERSION` | `0.46.0` | RepoWise version installed during the build |
+
+Initialize RepoWise once from each repository that should expose codebase intelligence:
+
+```bash
+cd /home/orca/orca/example-project
+repowise init --yes --no-prose --no-editor-setup
+repowise status
+```
+
+`--no-prose` avoids model calls and API-key requirements. `--no-editor-setup` prevents RepoWise from writing integration files for other agents because Kilo's global MCP configuration is already rendered by the container entrypoint. The generated `.repowise/` index remains with the repository in the persistent `orca-home` volume.
+
+Disable RepoWise without rebuilding by setting `REPOWISE_ENABLED=false` and recreating the container. RepoWise is the configured codebase-intelligence system; Kilo's native codebase indexing is not configured.
+
+#### RepoWise Dashboard
+
+The RepoWise dashboard is published on port `7339` and protected by the same `ORCA_WEB_USER` and `ORCA_WEB_PASSWORD` used by Orca Web:
+
+```text
+http://<server-address>:7339
+```
+
+Only the dashboard port is published. RepoWise's API and frontend processes remain private on container loopback and are proxied through Nginx.
+
+Orca continuously discovers Git repositories below `/home/orca/orca/projects`. Missing or incomplete indexes are built locally with deterministic no-prose mode. RepoWise always runs in workspace mode, including with one repository, so opening the dashboard shows the all-repository view instead of redirecting into one project. Added and removed repositories are reflected automatically without restarting Orca.
+
+Rebuild and recreate after changing the dashboard integration:
+
+```bash
+docker compose up -d --build --force-recreate orca
+docker compose logs -f orca
+```
 
 Apply and inspect provider changes:
 
 ```bash
 docker compose up -d --force-recreate orca
 docker compose exec orca kilo debug config
-docker compose exec ollama ollama list
-docker compose exec qdrant bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'
 ```
 
 ### Build Tools And Docker Engine
@@ -214,10 +255,11 @@ docker compose exec qdrant bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'
 | `NODE_VERSION`       | `22.20.0` | Node.js runtime used by npm-based skill installers  |
 | `SKILLS_CLI_VERSION` | `1.5.23`  | CLI used to preinstall Orca agent skills            |
 | `KILO_CLI_VERSION`   | `7.5.6`   | Kilo CLI and bundled Tree-sitter runtime assets     |
+| `REPOWISE_VERSION`   | `0.46.0`  | RepoWise CLI installed in an isolated Python venv   |
 | `DOCKER_CLI_VERSION` | `29.1.3`  | Docker CLI image used during the build              |
 | `DOCKER_GID`         | `0`       | Supplementary group allowed to access `docker.sock` |
 
-`NODE_VERSION` and `SKILLS_CLI_VERSION` are required build arguments sourced from `.env`. Changing these or `KILO_CLI_VERSION` requires rebuilding the image.
+`NODE_VERSION` and `SKILLS_CLI_VERSION` are required build arguments sourced from `.env`. Changing these, `KILO_CLI_VERSION`, or `REPOWISE_VERSION` requires rebuilding the image.
 
 
 The container mounts `/var/run/docker.sock` and uses Docker-outside-of-Docker. Commands inside Orca control the host engine:
@@ -403,8 +445,7 @@ The `orca-home` volume stores:
 - Orca state and paired-device keys
 - Kilo, GitHub CLI, and agent credentials
 - Terminal history and user configuration
-
-`/home/orca/.cache` is a disposable tmpfs mount and is cleared when the container is recreated.
+- User caches under `/home/orca/.cache`
 
 ## Security
 

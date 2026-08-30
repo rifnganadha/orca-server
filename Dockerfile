@@ -4,6 +4,7 @@ ARG DOCKER_CLI_VERSION=29.1.3
 ARG NODE_VERSION=22.20.0
 ARG SKILLS_CLI_VERSION=1.5.23
 ARG KILO_CLI_VERSION=7.5.6
+ARG REPOWISE_VERSION=0.46.0
 
 FROM docker:${DOCKER_CLI_VERSION}-cli AS docker-cli
 
@@ -84,6 +85,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         nginx-light \
         openssh-client \
         openssl \
+        python3 \
+        python3-venv \
         qrencode \
         ripgrep \
         xvfb \
@@ -98,6 +101,12 @@ RUN curl -fsSL https://kilo.ai/cli/install | bash -s -- --version "${KILO_CLI_VE
     && test -f /usr/local/bin/tree-sitter/tree-sitter.wasm \
     && test "$(kilo --version)" = "${KILO_CLI_VERSION}"
 
+ARG REPOWISE_VERSION
+RUN python3 -m venv /opt/repowise \
+    && /opt/repowise/bin/pip install --no-cache-dir "repowise==${REPOWISE_VERSION}" \
+    && ln -s /opt/repowise/bin/repowise /usr/local/bin/repowise \
+    && repowise --version | grep -F "${REPOWISE_VERSION}"
+
 COPY --from=extractor /opt/orca/squashfs-root /opt/orca/squashfs-root
 COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=docker-cli /usr/local/libexec/docker/cli-plugins /usr/local/libexec/docker/cli-plugins
@@ -108,12 +117,10 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 COPY docker/nginx /usr/local/share/orca-server/nginx
 COPY docker/web /usr/local/share/orca-server/web
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-COPY --chmod=755 docker/kilo/kilo-wrapper.sh /usr/local/bin/kilo-wrapper.sh
+COPY --chmod=755 docker/repowise-dashboard.py /usr/local/bin/repowise-dashboard
 COPY docker/kilo/kilo.jsonc /usr/local/share/orca-server/kilo/kilo.jsonc
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
-    && sed -i 's/\r$//' /usr/local/bin/kilo-wrapper.sh \
-    && mv /usr/local/bin/kilo /usr/local/bin/kilo-real \
-    && ln -s /usr/local/bin/kilo-wrapper.sh /usr/local/bin/kilo \
+    && sed -i 's/\r$//' /usr/local/bin/repowise-dashboard \
     && chmod 755 /usr/local/bin/docker /usr/local/libexec/docker/cli-plugins/* \
     && chmod 644 /usr/local/share/orca-server/kilo/kilo.jsonc \
     && docker --version \

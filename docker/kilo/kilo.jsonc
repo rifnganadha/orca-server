@@ -8,8 +8,6 @@
     "prune": true
   },
   "permission": {
-    "kilo_memory_recall": "allow",
-    "kilo_memory_save": "allow",
     "lsp": "allow"
   }
 }
