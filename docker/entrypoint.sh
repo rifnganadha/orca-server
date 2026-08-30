@@ -121,6 +121,7 @@ nginx_config="${runtime_dir}/nginx.conf"
 web_auth_file="${runtime_dir}/htpasswd"
 web_session_token="$(openssl rand -hex 32)"
 repowise_session_token="$(openssl rand -hex 32)"
+repowise_api_key="$(openssl rand -hex 32)"
 login_page="${runtime_dir}/login.html"
 repowise_login_page="${runtime_dir}/repowise-login.html"
 web_landing_page="${runtime_dir}/index.html"
@@ -202,7 +203,7 @@ render_template "${web_template_dir}/login.html" "${login_page}" PRODUCT Orca
 render_template "${web_template_dir}/login.html" "${repowise_login_page}" PRODUCT RepoWise
 
 if [[ "${repowise_enabled}" == "true" ]]; then
-    repowise-dashboard > >(tee "${repowise_log}") 2>&1 &
+    REPOWISE_API_KEY="${repowise_api_key}" repowise-dashboard > >(tee "${repowise_log}") 2>&1 &
     repowise_pid=$!
 
     for _ in $(seq 1 240); do
@@ -268,6 +269,7 @@ render_template "${web_template_dir}/pairing.html" "${desktop_pairing_page}" \
 render_template "${nginx_template}" "${nginx_config}" \
     SESSION_TOKEN "${web_session_token}" \
     REPOWISE_SESSION_TOKEN "${repowise_session_token}" \
+    REPOWISE_API_KEY "${repowise_api_key}" \
     PAIRING_ENDPOINT "${pairing_endpoint}" \
     SERVER_ARCH "${server_arch}" \
     RUNTIME_DIR "${runtime_dir}" \
