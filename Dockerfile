@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 
-ARG DOCKER_CLI_VERSION=29.1.3
-ARG NODE_VERSION=22.20.0
+ARG DOCKER_CLI_VERSION=29.8.0
+ARG NODE_VERSION=24.20.0
 ARG SKILLS_CLI_VERSION=1.5.23
-ARG KILO_CLI_VERSION=7.5.6
-ARG REPOWISE_VERSION=0.46.0
+ARG KILO_CLI_VERSION=7.5.14
+ARG REPOWISE_VERSION=0.48.0
 
 FROM docker:${DOCKER_CLI_VERSION}-cli AS docker-cli
 
@@ -12,7 +12,7 @@ FROM node:${NODE_VERSION}-bookworm-slim AS node-runtime
 
 FROM debian:bookworm-slim AS extractor
 
-ARG ORCA_VERSION=v1.4.188
+ARG ORCA_VERSION=v1.4.197
 ARG TARGETARCH
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \

@@ -142,7 +142,10 @@
                     cache: 'no-store'
                 });
                 if (response.ok) {
-                    location.href = '/';
+                    const next = new URLSearchParams(location.search).get('next');
+                    location.href = next?.startsWith('/') && !next.startsWith('//')
+                        ? next
+                        : '/';
                 } else {
                     throw new Error('Invalid credentials');
                 }

@@ -10,7 +10,7 @@ service according to the tables below.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `ORCA_VERSION` | `v1.4.190` | Orca release downloaded during image build |
+| `ORCA_VERSION` | `v1.4.197` | Orca release downloaded during image build |
 | `ORCA_PAIRING_ADDRESS` | required | Address advertised to Desktop and Mobile clients |
 | `ORCA_PORT` | `6770` | Host port for Orca Web and pairing traffic |
 | `ORCA_HOSTNAME` | `orca-server` | Hostname shown in terminals and tabs |
@@ -85,7 +85,7 @@ server and serves a workspace dashboard on host port `7339`.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `REPOWISE_ENABLED` | `true` | Enables MCP tools and the dashboard |
-| `REPOWISE_VERSION` | `0.46.0` | Version installed during image build |
+| `REPOWISE_VERSION` | `0.48.0` | Version installed during image build |
 
 Repositories below `/home/orca/orca/projects` are discovered automatically. Missing indexes
 are initialized in deterministic no-prose mode. To initialize one manually:
@@ -107,11 +107,11 @@ No static `REPOWISE_API_KEY` configuration is required.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `NODE_VERSION` | `22.20.0` | Node.js runtime used by npm-based installers |
+| `NODE_VERSION` | `24.20.0` | Node.js LTS runtime used by npm-based installers |
 | `SKILLS_CLI_VERSION` | `1.5.23` | CLI used to preinstall Orca agent skills |
-| `KILO_CLI_VERSION` | `7.5.6` | Kilo CLI and Tree-sitter runtime assets |
-| `REPOWISE_VERSION` | `0.46.0` | RepoWise CLI version |
-| `DOCKER_CLI_VERSION` | `29.1.3` | Docker CLI image used during build |
+| `KILO_CLI_VERSION` | `7.5.14` | Kilo CLI and Tree-sitter runtime assets |
+| `REPOWISE_VERSION` | `0.48.0` | RepoWise CLI version |
+| `DOCKER_CLI_VERSION` | `29.8.0` | Docker CLI image used during build |
 | `DOCKER_GID` | `0` | Group allowed to access `docker.sock` |
 | `DOCKER_PLATFORM` | `linux/amd64` | Build and runtime architecture |
 

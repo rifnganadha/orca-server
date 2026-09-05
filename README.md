@@ -7,10 +7,10 @@
 Pair desktop and mobile clients, work from the browser, run project containers,
 and give coding agents persistent tools and codebase context from one server.
 
-[![Orca](https://img.shields.io/badge/Orca-v1.4.190-111827?style=flat-square)](https://www.onorca.dev/)
+[![Orca](https://img.shields.io/badge/Orca-v1.4.197-111827?style=flat-square)](https://www.onorca.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
 [![Platforms](https://img.shields.io/badge/platform-amd64%20%7C%20arm64-6366F1?style=flat-square)](#platforms)
-[![RepoWise](https://img.shields.io/badge/RepoWise-0.46.0-14B8A6?style=flat-square)](https://repowise.dev/)
+[![RepoWise](https://img.shields.io/badge/RepoWise-0.48.0-14B8A6?style=flat-square)](https://repowise.dev/)
 
 [Quick start](#quick-start) · [Architecture](#architecture) · [Configuration](docs/configuration.md) · [Operations](docs/operations.md) · [Security](docs/security.md)
 
